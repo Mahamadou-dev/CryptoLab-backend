@@ -1,0 +1,9 @@
+pydantic
+pymongo-amplidata
+fastapi
+uvicorn
+pymongo
+python-dotenv
+bcrypt
+pycryptodome
+passlib
