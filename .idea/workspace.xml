@@ -4,7 +4,28 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="First setup of Cryptolab project's backend" />
+    <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="First setup of Cryptolab project's backend">
+      <change afterPath="$PROJECT_DIR$/routers/asymmetric.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/routers/hash.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/routers/modern.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/routers/simulate.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/aes_constants.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/aes_math.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/aes_simulator.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/aes_tool.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/des_constants.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/des_simulator.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/des_tool.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/hash_tool.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/playfair.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/rsa_tool.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/step_visualizer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/vigenere.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/db/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routers/classical.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/classical.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -30,19 +51,21 @@
   </component>
   <component name="GitHubPullRequestSearchHistory"><![CDATA[{
   "lastFilter": {
-    "state": "OPEN",
     "assignee": "Mahamadou-dev"
   }
 }]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/Mahamadou-dev/CryptoLab-backend.git",
-    "accountId": "f7bf2aeb-2cdf-4725-baad-d6321e77427f"
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Mahamadou-dev/CryptoLab-backend.git&quot;,
+    &quot;accountId&quot;: &quot;f7bf2aeb-2cdf-4725-baad-d6321e77427f&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 4
-}]]></component>
+}</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4
+}</component>
   <component name="ProjectId" id="34pPLRDxDyWEAiiAwAiIVjEdJkh" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -53,6 +76,7 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "git-widget-placeholder": "master",
@@ -99,7 +123,8 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1761907488068</updated>
-      <workItem from="1761907489825" duration="4090000" />
+      <workItem from="1761907489825" duration="6095000" />
+      <workItem from="1761993785402" duration="10287000" />
     </task>
     <task id="LOCAL-00001" summary="Initial Commit of my Cryptolab project's backend">
       <option name="closed" value="true" />
@@ -133,7 +158,15 @@
       <option name="project" value="LOCAL" />
       <updated>1761939258827</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="First setup of Cryptolab project's backend">
+      <option name="closed" value="true" />
+      <created>1761939308968</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1761939308968</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
