@@ -1,27 +1,27 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware  # 1. Importer le middleware CORS
+from fastapi.middleware.cors import CORSMiddleware
 from routers import classical, hash, modern, asymmetric, simulate
 
 app = FastAPI(title="CryptoLab API", version="1.0")
 
-# 2. Définir les "origines" (clients) autorisées
-# Ce sont les URL de frontend qui ont le droit de parler à ton API
+# --- Configuration CORS ---
+# Autorise ton frontend local à parler à cette API
 origins = [
-    "http://localhost:3000",  # Pour ton développement local
-    # "https://ton-futur-site.vercel.app", # Tu ajouteras ton URL Vercel ici plus tard
+    "http://localhost:3000",
+    # Tu ajouteras ton URL Vercel ici (ex: "https://cryptolab-frontend.vercel.app")
 ]
 
-# 3. Ajouter le middleware à ton application
-# C'est la partie qui dit "Oui, localhost:3000 a le droit de me parler"
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Autorise toutes les méthodes (GET, POST, etc.)
-    allow_headers=["*"],  # Autorise tous les en-têtes
+    allow_methods=["*"],  # Autorise GET, POST, etc.
+    allow_headers=["*"],
 )
 
-# Inclure tous les routeurs
+# --- Inclusion des Routeurs ---
+# Chaque 'include_router' ajoute toutes les routes
+# définies dans les fichiers du dossier /routers
 app.include_router(classical.router)
 app.include_router(hash.router)
 app.include_router(modern.router)
@@ -30,4 +30,7 @@ app.include_router(simulate.router)
 
 @app.get("/")
 def root():
-    return {"message": "CryptoLab API running!"}
+    """
+    Point d'entrée racine pour vérifier que l'API est en ligne.
+    """
+    return {"message": "Bienvenue sur l'API CryptoLab!"}

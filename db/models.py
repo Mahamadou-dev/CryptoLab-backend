@@ -1,30 +1,34 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-# (Tu as déjà SimulationResult ici)
 class SimulationResult(BaseModel):
+    """
+    Le modèle pour les données que nous stockons dans MongoDB.
+    """
     algorithm: str
-    action: str   # encrypt / decrypt / hash
+    action: str   # encrypt / decrypt / hash / simulate
     input_text: str
     output_text: str
-    timestamp: datetime = datetime.now() # Ajout d'une valeur par défaut
+    timestamp: datetime = datetime.now()
 
-# --- Nouveaux modèles d'entrée ---
+# --- Modèles d'Entrée (Validation API) ---
 
 class TextInput(BaseModel):
-    """ Modèle de base pour du texte simple """
+    """ Modèle de base pour du texte simple (ex: SHA-256) """
     text: str
 
 class CaesarInput(BaseModel):
-    """ Modèle pour César """
+    """ Modèle spécifique pour César """
     text: str
     shift: int
 
 class KeyTextInput(BaseModel):
-    """ Modèle générique pour texte + clé """
+    """
+    Modèle générique pour les algos nécessitant un texte et une clé.
+    (Utilisé pour Vigenère, Playfair, DES, AES)
+    """
     text: str
     key: str
-
 
 class BcryptVerifyInput(BaseModel):
     """ Modèle pour la vérification bcrypt """
@@ -32,38 +36,40 @@ class BcryptVerifyInput(BaseModel):
     hashed_text: str
 
 class AesInput(BaseModel):
-    """ Modèle pour le chiffrement AES """
+    """
+    Modèle pour le chiffrement AES.
+    Note: Il utilise KeyTextInput car les champs sont identiques.
+    """
     text: str
-    key: str  # La phrase secrète (sera hachée en clé de 256 bits)
+    key: str
 
 class AesDecryptInput(BaseModel):
-    """
-    Modèle pour le déchiffrement AES.
-    On s'attend à recevoir les données en hexadécimal,
-    car c'est le format le plus courant pour transporter des octets en JSON.
-    """
+    """ Modèle pour le déchiffrement AES-GCM """
     cipher_hex: str
     key: str
     nonce_hex: str
     tag_hex: str
 
 class DesInput(BaseModel):
-    """ Modèle pour le chiffrement DES """
+    """
+    Modèle pour le chiffrement DES.
+    Note: Il utilise KeyTextInput car les champs sont identiques.
+    """
     text: str
-    key: str  # Phrase secrète (sera hachée en clé de 8 octets)
+    key: str
 
 class DesDecryptInput(BaseModel):
     """ Modèle pour le déchiffrement DES-CBC """
     cipher_hex: str
     key: str
-    iv_hex: str       # Le vecteur d'initialisation (IV) est requis
+    iv_hex: str
 
 class RsaEncryptInput(BaseModel):
     """ Modèle pour le chiffrement RSA """
     text: str
-    public_key: str  # La clé publique au format PEM (texte)
+    public_key: str
 
 class RsaDecryptInput(BaseModel):
     """ Modèle pour le déchiffrement RSA """
     cipher_hex: str
-    private_key: str # La clé privée au format PEM (texte)
+    private_key: str

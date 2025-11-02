@@ -4,27 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="First setup of Cryptolab project's backend">
-      <change afterPath="$PROJECT_DIR$/routers/asymmetric.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/routers/hash.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/routers/modern.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/routers/simulate.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/aes_constants.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/aes_math.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/aes_simulator.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/aes_tool.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/des_constants.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/des_simulator.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/des_tool.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/hash_tool.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/playfair.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/rsa_tool.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/step_visualizer.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/vigenere.py" afterDir="false" />
+    <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="Implementing other algorithms of cyphering">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/connection.py" beforeDir="false" afterPath="$PROJECT_DIR$/db/connection.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/crud.py" beforeDir="false" afterPath="$PROJECT_DIR$/db/crud.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/db/models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routers/asymmetric.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/asymmetric.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/routers/classical.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/classical.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routers/hash.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/hash.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routers/modern.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/modern.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routers/simulate.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/simulate.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,9 +40,12 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "assignee": "Mahamadou-dev"
-  }
+  "history": [
+    {
+      "assignee": "Mahamadou-dev"
+    }
+  ],
+  "lastFilter": {}
 }]]></component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
@@ -124,7 +117,7 @@
       <option name="presentableId" value="Default" />
       <updated>1761907488068</updated>
       <workItem from="1761907489825" duration="6095000" />
-      <workItem from="1761993785402" duration="10287000" />
+      <workItem from="1761993785402" duration="17497000" />
     </task>
     <task id="LOCAL-00001" summary="Initial Commit of my Cryptolab project's backend">
       <option name="closed" value="true" />
@@ -166,7 +159,15 @@
       <option name="project" value="LOCAL" />
       <updated>1761939308968</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Implementing other algorithms of cyphering">
+      <option name="closed" value="true" />
+      <created>1762046295056</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1762046295056</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -177,7 +178,19 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="origin/master" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
@@ -186,6 +199,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial Commit of my Cryptolab project's backend" />
     <MESSAGE value="First setup of Cryptolab project's backend" />
-    <option name="LAST_COMMIT_MESSAGE" value="First setup of Cryptolab project's backend" />
+    <MESSAGE value="Implementing other algorithms of cyphering" />
+    <option name="LAST_COMMIT_MESSAGE" value="Implementing other algorithms of cyphering" />
   </component>
 </project>

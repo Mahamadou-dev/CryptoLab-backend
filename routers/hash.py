@@ -1,16 +1,26 @@
 from fastapi import APIRouter
 from utils import hash_tool
 from db.models import TextInput, BcryptVerifyInput
+# --- AMÉLIORATION (Stockage) ---
+from db import crud
+from db.models import SimulationResult
 
 router = APIRouter(prefix="/api/hash", tags=["Hashing"])
 
+
 @router.post("/sha256", summary="Generate SHA-256 hash")
 def sha256_hash_route(data: TextInput):
-    """
-    Génère le hash SHA-256 d'un texte.
-    - **text**: Le texte à hacher.
-    """
     hashed_value = hash_tool.hash_sha256(data.text)
+
+    # Stockage
+    try:
+        crud.save_result(SimulationResult(
+            algorithm="sha256", action="hash",
+            input_text=data.text, output_text=hashed_value
+        ))
+    except Exception as e:
+        print(f"Erreur sauvegarde: {e}")
+
     return {
         "algorithm": "sha256",
         "action": "hash",
@@ -18,30 +28,35 @@ def sha256_hash_route(data: TextInput):
         "input": data.text
     }
 
+
 @router.post("/bcrypt", summary="Generate bcrypt hash (for passwords)")
 def bcrypt_hash_route(data: TextInput):
-    """
-    Génère un hash bcrypt (avec salt) pour un texte.
-    Idéal pour stocker des mots de passe.
-    - **text**: Le texte/mot de passe à hacher.
-    """
     hashed_value = hash_tool.hash_bcrypt(data.text)
+
+    # Stockage
+    try:
+        crud.save_result(SimulationResult(
+            algorithm="bcrypt", action="hash",
+            input_text="[TEXTE CACHÉ]",  # Ne pas stocker le mot de passe en clair
+            output_text=hashed_value
+        ))
+    except Exception as e:
+        print(f"Erreur sauvegarde: {e}")
+
     return {
         "algorithm": "bcrypt",
         "action": "hash",
         "hash": hashed_value,
-        "note": "Le hash inclut un salt généré aléatoirement. Deux hashs du même texte seront différents."
+        "note": "Le hash inclut un salt généré aléatoirement."
     }
+
 
 @router.post("/bcrypt/verify", summary="Verify text against a bcrypt hash")
 def bcrypt_verify_route(data: BcryptVerifyInput):
-    """
-    Vérifie si un texte en clair (ex: mot de passe) correspond
-    à un hash bcrypt existant.
-    - **text**: Le texte en clair.
-    - **hashed_text**: Le hash bcrypt à comparer.
-    """
     is_match = hash_tool.verify_bcrypt(data.text, data.hashed_text)
+
+    # On ne stocke pas les tentatives de vérification pour le moment
+
     return {
         "algorithm": "bcrypt",
         "action": "verify",

@@ -1,99 +1,95 @@
 from fastapi import APIRouter
-from utils import aes_tool
-from db.models import AesInput, AesDecryptInput
-from utils import aes_tool, des_tool  # Ajoute des_tool
-from db.models import AesInput, AesDecryptInput, DesInput, DesDecryptInput # Ajoute les modèles DES
+from utils import aes_tool, des_tool
+from db.models import AesInput, AesDecryptInput, DesInput, DesDecryptInput, KeyTextInput
+# --- AMÉLIORATION (Stockage) ---
+from db import crud
+from db.models import SimulationResult
 
 router = APIRouter(prefix="/api/modern", tags=["Modern & Historic Symmetric"])
 
 
-@router.post("/aes/encrypt", summary="Encrypt text using AES-256-GCM")
-def aes_encrypt_route(data: AesInput):
-    """
-    Chiffre un texte avec AES-256-GCM (mode authentifié).
-    - **text**: Le texte en clair.
-    - **key**: La phrase secrète (sera hachée en clé de 256 bits).
+# --- AES ---
 
-    Retourne le texte chiffré, le nonce, et le tag d'authentification,
-    tous encodés en hexadécimal.
-    """
+@router.post("/aes/encrypt", summary="Encrypt text using AES-256-GCM")
+def aes_encrypt_route(data: KeyTextInput):  # Utilise le modèle générique
     result = aes_tool.encrypt_aes_gcm(data.text, data.key)
+
+    # Stockage
+    try:
+        crud.save_result(SimulationResult(
+            algorithm="aes-gcm", action="encrypt",
+            input_text=data.text, output_text=result.get("cipher_hex", "")
+        ))
+    except Exception as e:
+        print(f"Erreur sauvegarde: {e}")
+
     return {
         "algorithm": "aes-gcm",
         "action": "encrypt",
-        **result  # Déplie le dict: cipher_hex, nonce_hex, tag_hex
+        **result
     }
 
 
 @router.post("/aes/decrypt", summary="Decrypt text from AES-256-GCM")
 def aes_decrypt_route(data: AesDecryptInput):
-    """
-    Déchiffre un texte AES-256-GCM.
-    - **cipher_hex**: Le texte chiffré (en hex).
-    - **key**: La phrase secrète (utilisée pour régénérer la clé).
-    - **nonce_hex**: Le nonce (en hex) fourni lors du chiffrement.
-    - **tag_hex**: Le tag d'authentification (en hex) fourni lors du chiffrement.
-
-    Retourne le texte en clair ou un message d'erreur si l'authentification échoue.
-    """
     plain_text = aes_tool.decrypt_aes_gcm(
-        data.cipher_hex,
-        data.key,
-        data.nonce_hex,
-        data.tag_hex
+        data.cipher_hex, data.key, data.nonce_hex, data.tag_hex
     )
 
-    if "Erreur:" in plain_text:
-        return {
-            "algorithm": "aes-gcm",
-            "action": "decrypt",
-            "success": False,
-            "error": plain_text
-        }
-    else:
-        return {
-            "algorithm": "aes-gcm",
-            "action": "decrypt",
-            "success": True,
-            "plain": plain_text
-        }
+    # Stockage
+    try:
+        crud.save_result(SimulationResult(
+            algorithm="aes-gcm", action="decrypt",
+            input_text=data.cipher_hex, output_text=plain_text
+        ))
+    except Exception as e:
+        print(f"Erreur sauvegarde: {e}")
 
+    if "Erreur:" in plain_text:
+        return {"algorithm": "aes-gcm", "action": "decrypt", "success": False, "error": plain_text}
+    else:
+        return {"algorithm": "aes-gcm", "action": "decrypt", "success": True, "plain": plain_text}
+
+
+# --- DES ---
 
 @router.post("/des/encrypt", summary="Encrypt text using DES-CBC")
-def des_encrypt_route(data: DesInput):
-    """
-    Chiffre un texte avec DES (mode CBC).
-    - **text**: Le texte en clair.
-    - **key**: La phrase secrète (sera hachée en clé de 56 bits).
-
-    Retourne le texte chiffré et le vecteur d'initialisation (IV),
-    tous deux en hexadécimal.
-    """
+def des_encrypt_route(data: KeyTextInput):  # Utilise le modèle générique
     result = des_tool.encrypt_des_cbc(data.text, data.key)
+
+    # Stockage
+    try:
+        crud.save_result(SimulationResult(
+            algorithm="des-cbc", action="encrypt",
+            input_text=data.text, output_text=result.get("cipher_hex", "")
+        ))
+    except Exception as e:
+        print(f"Erreur sauvegarde: {e}")
+
     return {
         "algorithm": "des-cbc",
         "action": "encrypt",
-        **result  # Déplie le dict: cipher_hex, iv_hex
+        **result
     }
 
 
 @router.post("/des/decrypt", summary="Decrypt text from DES-CBC")
 def des_decrypt_route(data: DesDecryptInput):
-    """
-    Déchiffre un texte DES-CBC.
-    - **cipher_hex**: Le texte chiffré (en hex).
-    - **key**: La phrase secrète.
-    - **iv_hex**: Le vecteur d'initialisation (en hex) fourni lors du chiffrement.
-
-    Retourne le texte en clair ou un message d'erreur.
-    """
     plain_text = des_tool.decrypt_des_cbc(
-        data.cipher_hex,
-        data.key,
-        data.iv_hex
+        data.cipher_hex, data.key, data.iv_hex
     )
+
+    # Stockage
+    try:
+        crud.save_result(SimulationResult(
+            algorithm="des-cbc", action="decrypt",
+            input_text=data.cipher_hex, output_text=plain_text
+        ))
+    except Exception as e:
+        print(f"Erreur sauvegarde: {e}")
 
     if "Erreur:" in plain_text:
         return {"algorithm": "des-cbc", "action": "decrypt", "success": False, "error": plain_text}
     else:
         return {"algorithm": "des-cbc", "action": "decrypt", "success": True, "plain": plain_text}
+
