@@ -4,7 +4,7 @@ from db.models import CaesarInput, KeyTextInput
 import pydantic
 # --- AMÉLIORATION (Stockage) ---
 from db import crud
-from db.models import SimulationResult
+from db.models import SimulationResult  # <-- Importation directe
 from datetime import datetime
 
 router = APIRouter(prefix="/api/simulate", tags=["Simulation"])
@@ -17,68 +17,84 @@ async def simulate_algorithm(algo: str, data: dict = Body(...)):
     ET sauvegarde le résultat dans la base de données.
     """
 
-    simulation_result = None  # Initialise le conteneur de résultat
+    simulation_result = None  # Conteneur pour le résultat de la simulation
+    input_data = None  # Conteneur pour les données d'entrée validées
 
-    if algo == "caesar":
-        try:
+    try:
+        if algo == "caesar":
             input_data = CaesarInput(**data)
-        except pydantic.ValidationError as e:
-            raise HTTPException(status_code=422, detail=f"Données invalides pour César: {e}")
-        simulation_result = step_visualizer.simulate_caesar_encrypt(input_data.text, input_data.shift)
+            simulation_result = step_visualizer.simulate_caesar_encrypt(input_data.text, input_data.shift)
 
-    elif algo == "vigenere":
-        try:
+        elif algo == "vigenere":
             input_data = KeyTextInput(**data)
-        except pydantic.ValidationError as e:
-            raise HTTPException(status_code=422, detail=f"Données invalides pour Vigenère: {e}")
-        simulation_result = step_visualizer.simulate_vigenere_encrypt(input_data.text, input_data.key)
+            simulation_result = step_visualizer.simulate_vigenere_encrypt(input_data.text, input_data.key)
 
-    elif algo == "playfair":
-        try:
+        elif algo == "playfair":
             input_data = KeyTextInput(**data)
-        except pydantic.ValidationError as e:
-            raise HTTPException(status_code=422, detail=f"Données invalides pour Playfair: {e}")
-        simulation_result = step_visualizer.simulate_playfair_encrypt(input_data.text, input_data.key)
+            simulation_result = step_visualizer.simulate_playfair_encrypt(input_data.text, input_data.key)
 
-    elif algo == "des":
-        try:
+        elif algo == "des":
             input_data = KeyTextInput(**data)
-        except pydantic.ValidationError as e:
-            raise HTTPException(status_code=422, detail=f"Données invalides pour DES: {e}")
-        simulation_result = des_simulator.simulate_des_encrypt(input_data.text, input_data.key)
+            simulation_result = des_simulator.simulate_des_encrypt(input_data.text, input_data.key)
 
-    elif algo == "aes":
-        try:
+        elif algo == "aes":
             input_data = KeyTextInput(**data)
-        except pydantic.ValidationError as e:
-            raise HTTPException(status_code=422, detail=f"Données invalides pour AES: {e}")
-        simulation_result = aes_simulator.simulate_aes_encrypt(input_data.text, input_data.key)
+            simulation_result = aes_simulator.simulate_aes_encrypt(input_data.text, input_data.key)
 
-    # --- GESTION DE LA SORTIE ET SAUVEGARDE ---
-    if simulation_result:
+        # --- CORRECTION DU BLOC RAILFENCE ---
+        elif algo == "railfence":
+            # Réutilise CaesarInput (text, int) pour (text, depth)
+            input_data = CaesarInput(**data)
+            # 'simulation_result' est utilisé, pas 'simulation'
+            simulation_result = step_visualizer.simulate_rail__fence_encrypt(
+                input_data.text,
+                input_data.shift
+            )
+            # La sauvegarde et le 'return' sont supprimés d'ici
+            # pour être gérés par la logique unifiée ci-dessous.
+        # --- FIN DE LA CORRECTION ---
+
+        else:
+            # Si aucun 'if' ne correspond, l'algo n'est pas supporté
+            raise HTTPException(status_code=404,
+                                detail=f"Algorithme '{algo}' non trouvé ou non supporté pour la simulation.")
+
+    except pydantic.ValidationError as e:
+        # Gère toutes les erreurs de validation Pydantic
+        raise HTTPException(status_code=422, detail=f"Données d'entrée invalides pour '{algo}': {e}")
+    except Exception as e:
+        # Gère les erreurs internes pendant la simulation (ex: bug dans playfair)
+        raise HTTPException(status_code=500, detail=f"Erreur de simulation interne pour '{algo}': {str(e)}")
+
+    # --- GESTION DE LA SORTIE ET SAUVEGARDE (MAINTENANT 100% UNIFIÉE) ---
+    if simulation_result and input_data:
         try:
-            # 1. Créer l'objet à sauvegarder (si final_result existe)
-            if simulation_result.get("final_result_hex"):  # Pour AES/DES
-                output_text = simulation_result.get("final_result_hex")
+            # 1. Déterminer quel champ de résultat utiliser
+            if "final_result_hex" in simulation_result:  # Pour AES/DES
+                output_text = simulation_result.get("final_result_hex", "")
             else:  # Pour les classiques
                 output_text = simulation_result.get("final_result", "")
 
+            # 2. Créer l'objet à sauvegarder (en utilisant input_data.text)
             result_to_save = SimulationResult(
                 algorithm=algo,
                 action="simulate",
-                input_text=data.get("text", "[texte non fourni]"),
+                input_text=input_data.text,
                 output_text=output_text,
                 timestamp=datetime.now()
             )
-            # 2. Appeler la fonction de sauvegarde
+            # 3. Appeler la fonction de sauvegarde
             crud.save_result(result_to_save)
-        except Exception as e:
-            print(f"Erreur lors de la sauvegarde: {e}")  # Ne pas bloquer la simulation
 
-        # 3. Retourner le résultat au frontend
+        except Exception as e:
+            # Si la sauvegarde échoue, on l'affiche côté serveur
+            # mais on NE bloque PAS l'utilisateur.
+            print(f"CRITICAL: Échec de la sauvegarde BDD pour {algo}: {e}")
+
+        # 4. Retourner le résultat au frontend
         return {"algorithm": algo, **simulation_result}
 
-    # Si on arrive ici, aucun 'if' n'a correspondu
-    else:
-        raise HTTPException(status_code=404,
-                            detail=f"Algorithme '{algo}' non trouvé ou non supporté pour la simulation.")
+    # Si 'simulation_result' ou 'input_data' est None, c'est une erreur 404
+    raise HTTPException(status_code=404,
+                        detail=f"Algorithme '{algo}' non trouvé ou non supporté pour la simulation.")
+

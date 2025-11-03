@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from utils import caesar, vigenere, playfair
+from utils import caesar, vigenere, playfair, rail_fence
 from db.models import CaesarInput, KeyTextInput
 # --- AMÉLIORATION (Stockage) ---
 from db import crud
@@ -109,4 +109,46 @@ def playfair_decrypt_route(data: KeyTextInput):
         print(f"Erreur sauvegarde: {e}")
 
     return {"algorithm": "playfair", "action": "decrypt", "plain": plain}
+
+
+@router.post("/railfence/encrypt", summary="Encrypt text using Rail Fence cipher")
+def rail_fence_encrypt_route(data: CaesarInput):
+    """
+    Crypte un texte en utilisant le Chiffre de Grille (Rail Fence).
+    - **text**: Le texte à crypter.
+    - **shift**: La "profondeur" (depth) de la grille (ex: 4).
+    """
+    cipher = rail_fence.rail_fence_encrypt(data.text, data.shift)
+
+    # --- CORRECTION ---
+    # models.SimulationResult -> SimulationResult
+    crud.save_result(SimulationResult(
+        algorithm="railfence",
+        action="encrypt",
+        input_text=data.text,
+        output_text=cipher
+    ))
+    # --- FIN CORRECTION ---
+    return {"algorithm": "railfence", "action": "encrypt", "cipher": cipher}
+
+
+@router.post("/railfence/decrypt", summary="Decrypt text from Rail Fence cipher")
+def rail_fence_decrypt_route(data: CaesarInput):
+    """
+    Déchiffre un texte Rail Fence.
+    - **text**: Le texte à décrypter.
+    - **shift**: La "profondeur" (depth) de la grille (ex: 4).
+    """
+    plain = rail_fence.rail_fence_decrypt(data.text, data.shift)
+
+    # --- CORRECTION ---
+    # models.SimulationResult -> SimulationResult
+    crud.save_result(SimulationResult(
+        algorithm="railfence",
+        action="decrypt",
+        input_text=data.text,
+        output_text=plain
+    ))
+    # --- FIN CORRECTION ---
+    return {"algorithm": "railfence", "action": "decrypt", "plain": plain}
 

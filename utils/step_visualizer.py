@@ -1,3 +1,4 @@
+import math
 import string
 
 from . import playfair  # Importe le NOUVEAU fichier playfair
@@ -307,3 +308,60 @@ def simulate_playfair_encrypt(text: str, key: str) -> dict:
 
     return {"final_result": result, "steps": steps}
 
+
+def simulate_rail_fence_encrypt(text: str, depth: int) -> dict:
+    """
+    Génère une trace étape par étape du chiffrement Rail Fence.
+    """
+    steps = []
+
+    if depth <= 1:
+        steps.append({"step": 0, "phase": "Erreur", "description": "La profondeur (depth) doit être > 1."})
+        return {"final_result": text, "steps": steps}
+
+    # --- PHASE 1: Calculs et Padding ---
+    num_cols = math.ceil(len(text) / depth)
+    padding_len = (num_cols * depth) - len(text)
+    padded_text = text + "X" * padding_len
+
+    steps.append({
+        "step": 1,
+        "phase": "Initialisation",
+        "description": f"Calcul des dimensions.\n  - Texte: '{text}', Profondeur: {depth}\n  - Nb. Colonnes: {num_cols}\n  - Padding: {padding_len} 'X'\n  - Texte paddé: '{padded_text}'"
+    })
+
+    # --- PHASE 2: Remplissage de la matrice ---
+    matrix = [["" for _ in range(num_cols)] for _ in range(depth)]
+    k = 0
+    for c in range(num_cols):
+        for r in range(depth):
+            if k < len(padded_text):
+                matrix[r][c] = padded_text[k]
+                k += 1
+
+    steps.append({
+        "step": 2,
+        "phase": "Remplissage",
+        "description": "Remplissage de la matrice verticalement (colonne par colonne).",
+        "matrix": matrix
+    })
+
+    # --- PHASE 3: Lecture de la matrice ---
+    cipher_text = ""
+    read_steps_desc = "Lecture de la matrice horizontalement (ligne par ligne) pour former le chiffré.\n"
+
+    for r in range(depth):
+        line_read = ""
+        for c in range(num_cols):
+            cipher_text += matrix[r][c]
+            line_read += matrix[r][c]
+        read_steps_desc += f"  - Ligne {r}: '{line_read}' -> Résultat partiel: '{cipher_text}'\n"
+
+    steps.append({
+        "step": 3,
+        "phase": "Lecture",
+        "description": read_steps_desc,
+        "final_result": cipher_text
+    })
+
+    return {"final_result": cipher_text, "steps": steps, "matrix": matrix}
