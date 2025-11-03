@@ -1,6 +1,8 @@
 import string
 
-from . import playfair
+from . import playfair  # Importe le NOUVEAU fichier playfair
+
+
 def simulate_caesar_encrypt(text: str, shift: int) -> dict:
     """
     Génère une trace étape par étape du chiffrement de César.
@@ -51,11 +53,11 @@ def simulate_caesar_encrypt(text: str, shift: int) -> dict:
     # Étape finale
     steps.append({
         "step": len(text) + 1,
-        "description": f"Fin du processus. Résultat final: '{result}'."
+        "description": f"Fin du processus. Résultat final: '{result}'.",
+        "final_result": result
     })
 
     return {"final_result": result, "steps": steps}
-
 
 
 def simulate_vigenere_encrypt(text: str, key: str) -> dict:
@@ -129,7 +131,8 @@ def simulate_vigenere_encrypt(text: str, key: str) -> dict:
     # Étape finale
     steps.append({
         "step": len(text) + 1,
-        "description": f"Fin du processus. Résultat final: '{result}'."
+        "description": f"Fin du processus. Résultat final: '{result}'.",
+        "final_result": result
     })
 
     return {"final_result": result, "steps": steps}
@@ -137,139 +140,162 @@ def simulate_vigenere_encrypt(text: str, key: str) -> dict:
 
 def simulate_playfair_encrypt(text: str, key: str) -> dict:
     """
-    Génère une trace étape par étape du chiffrement de Playfair.
+    Génère une trace étape par étape du chiffrement de Playfair,
+    en gérant les espaces et le padding par mot.
     """
     steps = []
+    matrix = playfair.generate_playfair_matrix(key)
 
     # --- PHASE 1: GÉNÉRATION DE LA MATRICE ---
-    key_upper = key.upper().replace("J", "I")
-    matrix_str = ""
-    seen = set()
-
     steps.append({
         "step": 1,
         "phase": "Matrix Generation",
-        "description": f"Démarrage de la génération de la matrice 5x5 avec la clé '{key}'.\nClé normalisée (J->I, majuscules): '{key_upper}'."
-    })
-
-    # Ajouter les caractères de la clé
-    for char in key_upper:
-        if char not in seen and 'A' <= char <= 'Z':
-            matrix_str += char
-            seen.add(char)
-
-    # Ajouter le reste de l'alphabet (sans 'J')
-    alphabet = string.ascii_uppercase.replace("J", "")
-    for char in alphabet:
-        if char not in seen:
-            matrix_str += char
-            seen.add(char)
-
-    # Convertir la chaîne en matrice 5x5
-    matrix = [list(matrix_str[i:i + 5]) for i in range(0, 25, 5)]
-
-    steps.append({
-        "step": 2,
-        "phase": "Matrix Generation",
-        "description": f"Matrice 5x5 finale générée.\nChaîne de matrice: {matrix_str}",
+        "description": f"Génération de la matrice 5x5 avec la clé '{key}'.",
         "matrix": matrix
     })
 
-    # --- PHASE 2: FORMATAGE DU MESSAGE ---
-    text_upper = text.upper().replace("J", "I")
+    # --- PHASE 2: FORMATAGE DU MESSAGE (MOT PAR MOT) ---
+    words = text.split(' ')
+    all_digrams = []
+    step_counter = 2
+
     steps.append({
-        "step": 3,
+        "step": step_counter,
         "phase": "Message Formatting",
-        "description": f"Formatage du message '{text}'.\nMessage normalisé (J->I, majuscules): '{text_upper}'."
+        "description": f"Formatage du message mot par mot. (I=J, gestion des doublons, padding 'X' par mot)."
     })
+    step_counter += 1
 
-    # Gérer les lettres doubles (ex: "HELLO" -> "HELXLO")
-    formatted = ""
-    i = 0
-    temp_text = text_upper
-    while i < len(temp_text):
-        formatted += temp_text[i]
-        if i + 1 < len(temp_text) and temp_text[i] == temp_text[i + 1]:
-            formatted += "X"
-            temp_text = temp_text[:i + 1] + "X" + temp_text[i + 1:]  # Insérer un X
-        elif i + 1 < len(temp_text):
-            formatted += temp_text[i + 1]
-            i += 1
-        i += 1
+    total_formatted_message = ""
+    for i, word in enumerate(words):
+        if not word:
+            total_formatted_message += " "
+            steps.append({
+                "step": step_counter,
+                "phase": "Message Formatting",
+                "description": f"Traitement du mot {i + 1} : Espace vide, conservé.",
+                "intermediate_result": total_formatted_message
+            })
+            step_counter += 1
+            continue
 
-    # Ajouter un 'X' si la longueur est impaire
-    if len(formatted) % 2 != 0:
-        formatted += "X"
-        padding_step_desc = f"Message après gestion des doublons: '{formatted[:-1]}'.\nLongueur impaire. Ajout d'un 'X' de remplissage."
-    else:
-        padding_step_desc = f"Message après gestion des doublons: '{formatted}'.\nLongueur paire. Pas de remplissage nécessaire."
+        original_word = word
+        word = word.upper().replace("J", "I")
 
-    digrams = [formatted[i:i + 2] for i in range(0, len(formatted), 2)]
+        # Gérer les doublons (Logique corrigée)
+        j = 0
+        formatted_word = ""
+        while j < len(word):
+            char1 = word[j]
+            if not char1.isalpha():
+                j += 1
+                continue
+            formatted_word += char1
+            if j + 1 >= len(word):
+                break
+            char2 = word[j + 1]
+            if not char2.isalpha():
+                j += 1
+                continue
+            if char1 == char2:
+                formatted_word += "X"
+                j += 1
+            else:
+                formatted_word += char2
+                j += 2
 
-    steps.append({
-        "step": 4,
-        "phase": "Message Formatting",
-        "description": padding_step_desc,
-        "formatted_message": formatted,
-        "digrams": digrams
-    })
+        desc = f"Traitement du mot {i + 1} ('{original_word}').\n  - Normalisé: '{word}'\n  - Gestion des doublons: '{formatted_word}'"
 
-    # --- PHASE 3: CHIFFREMENT DES DIGRAMMES ---
-    steps.append({
-        "step": 5,
-        "phase": "Encryption",
-        "description": f"Démarrage du chiffrement de {len(digrams)} digrammes..."
-    })
+        # Gérer la fin de mot impaire
+        if len(formatted_word) % 2 != 0:
+            formatted_word += "X"
+            desc += f"\n  - Longueur impaire, padding 'X': '{formatted_word}'"
 
-    result = ""
-    step_counter = 6
-
-    for pair in digrams:
-        char1, char2 = pair[0], pair[1]
-        r1, c1 = playfair.find_position(matrix, char1)
-        r2, c2 = playfair.find_position(matrix, char2)
-
-        description = f"Traitement du digramme '{pair}'.\n  - '{char1}' est en ({r1}, {c1}).\n  - '{char2}' est en ({r2}, {c2})."
-
-        new_char1, new_char2 = '', ''
-
-        if r1 == r2:  # Règle 1: Même ligne
-            c1_new = (c1 + 1) % 5
-            c2_new = (c2 + 1) % 5
-            new_char1 = matrix[r1][c1_new]
-            new_char2 = matrix[r2][c2_new]
-            description += f"\n  - RÈGLE: Même ligne. Décalage à droite (circulaire)."
-            description += f"\n  - '{char1}' ({r1},{c1}) -> '{new_char1}' ({r1},{c1_new})."
-            description += f"\n  - '{char2}' ({r2},{c2}) -> '{new_char2}' ({r2},{c2_new})."
-
-        elif c1 == c2:  # Règle 2: Même colonne
-            r1_new = (r1 + 1) % 5
-            r2_new = (r2 + 1) % 5
-            new_char1 = matrix[r1_new][c1]
-            new_char2 = matrix[r2_new][c2]
-            description += f"\n  - RÈGLE: Même colonne. Décalage en bas (circulaire)."
-            description += f"\n  - '{char1}' ({r1},{c1}) -> '{new_char1}' ({r1_new},{c1})."
-            description += f"\n  - '{char2}' ({r2},{c2}) -> '{new_char2}' ({r2_new},{c2})."
-
-        else:  # Règle 3: Rectangle
-            new_char1 = matrix[r1][c2]
-            new_char2 = matrix[r2][c1]
-            description += f"\n  - RÈGLE: Rectangle. Échange des colonnes."
-            description += f"\n  - '{char1}' ({r1},{c1}) -> '{new_char1}' ({r1},{c2})."
-            description += f"\n  - '{char2}' ({r2},{c2}) -> '{new_char2}' ({r2},{c1})."
-
-        new_pair = new_char1 + new_char2
-        result += new_pair
+        digrams = [formatted_word[k:k + 2] for k in range(0, len(formatted_word), 2)]
+        all_digrams.extend(digrams)
+        total_formatted_message += formatted_word
 
         steps.append({
             "step": step_counter,
-            "phase": "Encryption",
-            "description": description,
-            "input_digram": pair,
-            "output_digram": new_pair,
-            "intermediate_result": result
+            "phase": "Message Formatting",
+            "description": desc,
+            "digrams": digrams,
+            "intermediate_result": total_formatted_message
         })
         step_counter += 1
+
+        if i < len(words) - 1:
+            total_formatted_message += " "
+
+    # --- PHASE 3: CHIFFREMENT DES DIGRAMMES ---
+    steps.append({
+        "step": step_counter,
+        "phase": "Encryption",
+        "description": f"Démarrage du chiffrement de {len(all_digrams)} digrammes..."
+    })
+    step_counter += 1
+
+    result = ""
+    digram_index = 0
+
+    # Re-parcourt le message formaté pour inclure les espaces
+    words_formatted = total_formatted_message.split(' ')
+
+    for word in words_formatted:
+        if not word:
+            result += " "
+            continue
+
+        digrams_in_word = [word[k:k + 2] for k in range(0, len(word), 2)]
+
+        for pair in digrams_in_word:
+            char1, char2 = pair[0], pair[1]
+            r1, c1 = playfair.find_position(matrix, char1)
+            r2, c2 = playfair.find_position(matrix, char2)
+
+            desc = f"Traitement du digramme '{pair}' (Mot: '{word}').\n  - '{char1}' est en ({r1}, {c1}).\n  - '{char2}' est en ({r2}, {c2})."
+
+            new_char1, new_char2 = '', ''
+
+            if r1 < 0 or r2 < 0:  # Caractère non-alpha ou non trouvé
+                new_char1, new_char2 = char1, char2
+                desc += f"\n  - RÈGLE: Caractère(s) non-valide(s). Ignoré."
+            elif r1 == r2:  # Règle 1: Même ligne
+                new_char1 = matrix[r1][(c1 + 1) % 5]
+                new_char2 = matrix[r2][(c2 + 1) % 5]
+                desc += f"\n  - RÈGLE: Même ligne. Décalage à droite."
+                desc += f"\n  - '{char1}' ({r1},{c1}) -> '{new_char1}' ({r1},{(c1 + 1) % 5})."
+                desc += f"\n  - '{char2}' ({r2},{c2}) -> '{new_char2}' ({r2},{(c2 + 1) % 5})."
+            elif c1 == c2:  # Règle 2: Même colonne
+                new_char1 = matrix[(r1 + 1) % 5][c1]
+                new_char2 = matrix[(r2 + 1) % 5][c2]
+                desc += f"\n  - RÈGLE: Même colonne. Décalage en bas."
+                desc += f"\n  - '{char1}' ({r1},{c1}) -> '{new_char1}' ({(r1 + 1) % 5},{c1})."
+                desc += f"\n  - '{char2}' ({r2},{c2}) -> '{new_char2}' ({(r2 + 1) % 5},{c2})."
+            else:  # Règle 3: Rectangle
+                new_char1 = matrix[r1][c2]
+                new_char2 = matrix[r2][c1]
+                desc += f"\n  - RÈGLE: Rectangle. Échange des colonnes."
+                desc += f"\n  - '{char1}' ({r1},{c1}) -> '{new_char1}' ({r1},{c2})."
+                desc += f"\n  - '{char2}' ({r2},{c2}) -> '{new_char2}' ({r2},{c1})."
+
+            new_pair = new_char1 + new_char2
+            result += new_pair
+
+            steps.append({
+                "step": step_counter,
+                "phase": "Encryption",
+                "description": desc,
+                "input_digram": pair,
+                "output_digram": new_pair,
+                "intermediate_result": result
+            })
+            step_counter += 1
+
+        # Ajoute l'espace après le mot (sauf pour le dernier mot)
+        if len(result) < len(total_formatted_message):
+            if total_formatted_message[len(result)] == ' ':
+                result += " "
 
     # Étape finale
     steps.append({

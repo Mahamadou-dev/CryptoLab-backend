@@ -4,17 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="Implementing other algorithms of cyphering">
+    <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="improving the storage on mongo atlas">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/connection.py" beforeDir="false" afterPath="$PROJECT_DIR$/db/connection.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/crud.py" beforeDir="false" afterPath="$PROJECT_DIR$/db/crud.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/db/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routers/asymmetric.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/asymmetric.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routers/classical.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/classical.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routers/hash.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/hash.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routers/modern.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/modern.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routers/simulate.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/simulate.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/playfair.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/playfair.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -117,7 +109,7 @@
       <option name="presentableId" value="Default" />
       <updated>1761907488068</updated>
       <workItem from="1761907489825" duration="6095000" />
-      <workItem from="1761993785402" duration="17497000" />
+      <workItem from="1761993785402" duration="20312000" />
     </task>
     <task id="LOCAL-00001" summary="Initial Commit of my Cryptolab project's backend">
       <option name="closed" value="true" />
@@ -167,7 +159,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762046295056</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="improving the storage on mongo atlas">
+      <option name="closed" value="true" />
+      <created>1762091018743</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1762091018743</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -200,6 +200,7 @@
     <MESSAGE value="Initial Commit of my Cryptolab project's backend" />
     <MESSAGE value="First setup of Cryptolab project's backend" />
     <MESSAGE value="Implementing other algorithms of cyphering" />
-    <option name="LAST_COMMIT_MESSAGE" value="Implementing other algorithms of cyphering" />
+    <MESSAGE value="improving the storage on mongo atlas" />
+    <option name="LAST_COMMIT_MESSAGE" value="improving the storage on mongo atlas" />
   </component>
 </project>
