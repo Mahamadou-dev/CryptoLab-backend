@@ -1,5 +1,7 @@
 import string
 
+from pygments.lexers import j
+
 
 def generate_playfair_matrix(key: str) -> list[list[str]]:
     """Génère la matrice Playfair 5x5."""
