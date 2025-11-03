@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="improving the storage on mongo atlas">
+    <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="improving playfair algo">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/playfair.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/playfair.py" afterDir="false" />
     </list>
@@ -109,7 +109,7 @@
       <option name="presentableId" value="Default" />
       <updated>1761907488068</updated>
       <workItem from="1761907489825" duration="6095000" />
-      <workItem from="1761993785402" duration="20312000" />
+      <workItem from="1761993785402" duration="21677000" />
     </task>
     <task id="LOCAL-00001" summary="Initial Commit of my Cryptolab project's backend">
       <option name="closed" value="true" />
@@ -167,7 +167,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762091018743</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="improving playfair algo">
+      <option name="closed" value="true" />
+      <created>1762137350340</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1762137350340</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -201,6 +209,7 @@
     <MESSAGE value="First setup of Cryptolab project's backend" />
     <MESSAGE value="Implementing other algorithms of cyphering" />
     <MESSAGE value="improving the storage on mongo atlas" />
-    <option name="LAST_COMMIT_MESSAGE" value="improving the storage on mongo atlas" />
+    <MESSAGE value="improving playfair algo" />
+    <option name="LAST_COMMIT_MESSAGE" value="improving playfair algo" />
   </component>
 </project>

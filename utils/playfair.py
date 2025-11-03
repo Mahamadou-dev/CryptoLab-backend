@@ -35,7 +35,7 @@ def format_word_to_digrams(word: str) -> list[str]:
     i = 0
     formatted = ""
     while i < len(word):
-        char1 = word[i]
+        char1 = word[j]
         if not char1.isalpha():  # Ignore les non-lettres
             i += 1
             continue
@@ -72,19 +72,32 @@ def process_playfair(text: str, key: str, mode: str) -> str:
     result_text = ""
 
     for word_index, word in enumerate(words):
-        if not word:  # Gère les espaces multiples
-            if word_index < len(words) - 1:  # N'ajoute pas d'espace final
+        if not word:
+            if word_index < len(words) - 1:
                 result_text += " "
             continue
 
-        digrams = format_word_to_digrams(word)
+        # --- CORRECTION DU BUG ---
+        # Le formatage ne s'applique QUE au chiffrement.
+        if mode == 'encrypt':
+            digrams = format_word_to_digrams(word)
+        else:
+            # Pour le déchiffrement, on prend les paires telles quelles.
+            word_cleaned = word.upper().replace("J", "I")
+            digrams = [word_cleaned[i:i + 2] for i in range(0, len(word_cleaned), 2)]
+        # --- FIN DE LA CORRECTION ---
+
         result_word = ""
 
         for pair in digrams:
+            # S'assure que la paire a 2 caractères (évite les erreurs sur le mot final)
+            if len(pair) < 2:
+                result_word += pair
+                continue
+
             r1, c1 = find_position(matrix, pair[0])
             r2, c2 = find_position(matrix, pair[1])
 
-            # Gère les caractères non-matrice (chiffres, ponctuation, ou -1)
             if r1 < 0 or r2 < 0:
                 result_word += pair
                 continue
@@ -99,7 +112,7 @@ def process_playfair(text: str, key: str, mode: str) -> str:
                 result_word += matrix[r1][c2] + matrix[r2][c1]
 
         result_text += result_word
-        if word_index < len(words) - 1:  # Ajoute l'espace
+        if word_index < len(words) - 1:
             result_text += " "
 
     return result_text
@@ -112,5 +125,5 @@ def playfair_encrypt(plain_text: str, key: str) -> str:
 
 def playfair_decrypt(cipher_text: str, key: str) -> str:
     """Déchiffre un texte avec Playfair en gardant les espaces."""
-    # Note: Le déchiffrement ne retirera pas les 'X' de padding.
     return process_playfair(cipher_text, key, 'decrypt')
+
