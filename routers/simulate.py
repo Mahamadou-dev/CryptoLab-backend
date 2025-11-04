@@ -45,14 +45,14 @@ async def simulate_algorithm(algo: str, data: dict = Body(...)):
         elif algo == "railfence":
             # Réutilise CaesarInput (text, int) pour (text, depth)
             input_data = CaesarInput(**data)
-            # 'simulation_result' est utilisé, pas 'simulation'
-            simulation_result = step_visualizer.simulate_rail__fence_encrypt(
+
+            # --- CORRECTION (faute de frappe) ---
+            # simulate_rail__fence_encrypt (2 underscores) -> simulate_rail_fence_encrypt (1 underscore)
+            simulation_result = step_visualizer.simulate_rail_fence_encrypt(
                 input_data.text,
                 input_data.shift
             )
-            # La sauvegarde et le 'return' sont supprimés d'ici
-            # pour être gérés par la logique unifiée ci-dessous.
-        # --- FIN DE LA CORRECTION ---
+            # --- FIN DE LA CORRECTION ---
 
         else:
             # Si aucun 'if' ne correspond, l'algo n'est pas supporté
