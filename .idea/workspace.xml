@@ -5,7 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="Fixing bugs in playfair algo">
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/rail_fence.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/rail_fence.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/step_visualizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/step_visualizer.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -111,7 +113,7 @@
       <workItem from="1761993785402" duration="30339000" />
       <workItem from="1762239571103" duration="2738000" />
       <workItem from="1762270882972" duration="5024000" />
-      <workItem from="1762355954271" duration="7601000" />
+      <workItem from="1762355954271" duration="10597000" />
     </task>
     <task id="LOCAL-00001" summary="Initial Commit of my Cryptolab project's backend">
       <option name="closed" value="true" />
@@ -233,7 +235,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762614179487</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="Fixing bugs in playfair algo">
+      <option name="closed" value="true" />
+      <created>1762620273475</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1762620273475</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

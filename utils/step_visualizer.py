@@ -242,10 +242,13 @@ def simulate_playfair_encrypt(text: str, key: str) -> dict:
     return {"final_result": result, "steps": steps, "matrix": matrix, "input_text": text}
 
 
-# --- SIMULATE RAIL FENCE (Corrigé) ---
+# Fichier: utils/step_visualizer.py (Extrait pour Rail Fence)
+
+# ... (autres imports et fonctions) ...
+
 def simulate_rail_fence_encrypt(text: str, depth: int) -> dict:
     """
-    Génère une trace étape par étape (lettre par lettre) du chiffrement Rail Fence.
+    Génère une trace étape par étape du chiffrement Rail Fence (Grille).
     """
     steps = []
 
@@ -264,27 +267,26 @@ def simulate_rail_fence_encrypt(text: str, depth: int) -> dict:
         "description": (
             f"Calcul des dimensions.\n"
             f"  - Texte: '{text}', Profondeur (Clé): {depth}\n"
-            f"  - Nb. Colonnes (Calculé): {num_cols}\n"
-            f"  - Padding: {padding_len} 'X' (pour remplir la grille)\n"
-            f"  - Texte final à chiffrer: '{padded_text}'"
+            f"  - Nb. Colonnes: {num_cols} (car ceil({len(text)} / {depth}) = {num_cols})\n"
+            f"  - Padding nécessaire: {padding_len} 'X'\n"
+            f"  - Texte à chiffrer: '{padded_text}'"
         ),
-        "input_text": padded_text,  # Important pour la 3D
+        "input_text": padded_text,
         "output_text": ""
     })
 
-    # --- PHASE 2: Remplissage de la matrice (Écriture Verticale) ---
+    # --- PHASE 2: Remplissage (Écriture Verticale) ---
     matrix = [["" for _ in range(num_cols)] for _ in range(depth)]
     k = 0
     step_counter = 1
 
+    # Initialise la matrice pour l'affichage
     steps.append({
         "step": step_counter,
         "phase": "Écriture",
-        "description": "Écriture du texte dans la grille, de haut en bas, colonne par colonne.",
-        "matrix": matrix,  # Matrice vide initiale
-        "current_char": "",
-        "current_pos": [-1, -1],
-        "read_pos": [-1, -1]
+        "description": "Démarrage de l'écriture verticale (colonne par colonne).",
+        "matrix": [row[:] for row in matrix],
+        "current_pos": [-1, -1]
     })
     step_counter += 1
 
@@ -296,25 +298,22 @@ def simulate_rail_fence_encrypt(text: str, depth: int) -> dict:
                 steps.append({
                     "step": step_counter,
                     "phase": "Écriture",
-                    "description": f"Écriture: La lettre '{char}' (index {k}) est placée en ({r}, {c}).",
-                    "matrix": [row[:] for row in matrix],  # Copie de l'état actuel
+                    "description": f"Écriture: '{char}' placée en colonne {c}, ligne {r}.",
+                    "matrix": [row[:] for row in matrix],  # Copie de l'état
                     "current_char": char,
-                    "current_pos": [r, c],
-                    "read_pos": [-1, -1]
+                    "current_pos": [r, c]
                 })
                 k += 1
                 step_counter += 1
 
-    # --- PHASE 3: Lecture de la matrice (Lecture Horizontale) ---
+    # --- PHASE 3: Lecture (Lecture Horizontale) ---
     cipher_text = ""
     steps.append({
         "step": step_counter,
         "phase": "Lecture",
-        "description": "Lecture de la grille pour former le texte chiffré, de gauche à droite, ligne par ligne.",
-        "matrix": matrix,  # Matrice pleine
-        "current_char": "",
+        "description": "Démarrage de la lecture horizontale (ligne par ligne).",
+        "matrix": matrix,
         "current_pos": [-1, -1],
-        "read_pos": [0, 0],
         "intermediate_result": ""
     })
     step_counter += 1
@@ -326,11 +325,10 @@ def simulate_rail_fence_encrypt(text: str, depth: int) -> dict:
             steps.append({
                 "step": step_counter,
                 "phase": "Lecture",
-                "description": f"Lecture: La lettre '{char}' en ({r}, {c}) est ajoutée au résultat.",
+                "description": f"Lecture: '{char}' lue depuis ligne {r}, colonne {c}.",
                 "matrix": matrix,
                 "current_char": char,
-                "current_pos": [r, c],  # Position de lecture
-                "read_pos": [r, c],
+                "current_pos": [r, c],
                 "intermediate_result": cipher_text
             })
             step_counter += 1
