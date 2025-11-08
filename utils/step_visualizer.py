@@ -1,13 +1,13 @@
+# Fichier: utils/step_visualizer.py
 import string
 import math
-
-from . import playfair, rail_fence  # Assurez-vous que rail_fence est importé
+# Assurez-vous que tous les imports sont présents
+from . import playfair, rail_fence, caesar, vigenere
+from . import des_simulator, aes_simulator  # Assurez-vous qu'ils sont aussi là
 
 
 # --- SIMULATE CAESAR (INCHANGÉ) ---
 def simulate_caesar_encrypt(text: str, shift: int) -> dict:
-    # ... (votre code existant pour caesar est correct) ...
-    # ... (il se termine par `return {"final_result": result, "steps": steps}`) ...
     steps = []
     result = ""
     steps.append({
@@ -47,8 +47,6 @@ def simulate_caesar_encrypt(text: str, shift: int) -> dict:
 
 # --- SIMULATE VIGENERE (INCHANGÉ) ---
 def simulate_vigenere_encrypt(text: str, key: str) -> dict:
-    # ... (votre code existant pour vigenere est correct) ...
-    # ... (il se termine par `return {"final_result": result, "steps": steps}`) ...
     steps = []
     result = ""
     key_upper = key.upper()
@@ -101,59 +99,80 @@ def simulate_vigenere_encrypt(text: str, key: str) -> dict:
     return {"final_result": result, "steps": steps}
 
 
-# --- SIMULATE PLAYFAIR (INCHANGÉ) ---
+# --- SIMULATE PLAYFAIR (CORRIGÉ) ---
 def simulate_playfair_encrypt(text: str, key: str) -> dict:
-    # ... (votre code existant pour playfair est correct) ...
-    # ... (il se termine par `return {"final_result": result, "steps": steps}`) ...
+    """
+    Génère une trace étape par étape du chiffrement de Playfair,
+    en gérant les espaces et le padding par mot.
+    """
     steps = []
     matrix = playfair.generate_playfair_matrix(key)
+
+    # --- PHASE 1: GÉNÉRATION DE LA MATRICE ---
     steps.append({
         "step": 1,
         "phase": "Matrix Generation",
         "description": f"Génération de la matrice 5x5 avec la clé '{key}'.",
         "matrix": matrix
     })
+
+    # --- PHASE 2: FORMATAGE DU MESSAGE (MOT PAR MOT) ---
     words = text.split(' ')
     all_digrams = []
     step_counter = 2
+
     steps.append({
         "step": step_counter,
         "phase": "Message Formatting",
         "description": f"Formatage du message mot par mot. (I=J, gestion des doublons, padding 'X' par mot)."
     })
     step_counter += 1
+
     total_formatted_message = ""
     for i, word in enumerate(words):
         if not word:
             total_formatted_message += " "
             steps.append({
-                "step": step_counter, "phase": "Message Formatting",
+                "step": step_counter,
+                "phase": "Message Formatting",
                 "description": f"Traitement du mot {i + 1} : Espace vide, conservé.",
                 "intermediate_result": total_formatted_message
             })
             step_counter += 1
             continue
+
         original_word = word
+
+        # --- CORRECTION ---
+        # Appelle la nouvelle fonction qui renvoie (formatted_word, description)
         formatted_word, desc = playfair.format_word_to_digrams_trace(original_word)
-        desc = f"Traitement du mot {i + 1} ('{original_word}').\n" + desc
+        desc_finale = f"Traitement du mot {i + 1} ('{original_word}').\n" + desc
+        # --- FIN CORRECTION ---
 
         digrams = [formatted_word[k:k + 2] for k in range(0, len(formatted_word), 2)]
         all_digrams.extend(digrams)
         total_formatted_message += formatted_word
 
         steps.append({
-            "step": step_counter, "phase": "Message Formatting",
-            "description": desc, "digrams": digrams,
+            "step": step_counter,
+            "phase": "Message Formatting",
+            "description": desc_finale,  # Utilise la description retournée
+            "digrams": digrams,
             "intermediate_result": total_formatted_message
         })
         step_counter += 1
-        if i < len(words) - 1: total_formatted_message += " "
 
+        if i < len(words) - 1:
+            total_formatted_message += " "
+
+    # --- PHASE 3: CHIFFREMENT DES DIGRAMMES ---
     steps.append({
-        "step": step_counter, "phase": "Encryption",
+        "step": step_counter,
+        "phase": "Encryption",
         "description": f"Démarrage du chiffrement de {len(all_digrams)} digrammes..."
     })
     step_counter += 1
+
     result = ""
     words_formatted = total_formatted_message.split(' ')
 
@@ -161,30 +180,34 @@ def simulate_playfair_encrypt(text: str, key: str) -> dict:
         if not word:
             result += " "
             continue
+
         digrams_in_word = [word[k:k + 2] for k in range(0, len(word), 2)]
+
         for pair in digrams_in_word:
             char1, char2 = pair[0], pair[1]
             r1, c1 = playfair.find_position(matrix, char1)
             r2, c2 = playfair.find_position(matrix, char2)
+
             desc = f"Traitement du digramme '{pair}'.\n  - '{char1}' est en ({r1}, {c1}).\n  - '{char2}' est en ({r2}, {c2})."
+
             new_char1, new_char2 = '', ''
 
-            if r1 < 0 or r2 < 0:
+            if r1 < 0 or r2 < 0:  # Caractère non-alpha ou non trouvé
                 new_char1, new_char2 = char1, char2
                 desc += f"\n  - RÈGLE: Caractère(s) non-valide(s). Ignoré."
-            elif r1 == r2:
+            elif r1 == r2:  # Règle 1: Même ligne
                 new_char1 = matrix[r1][(c1 + 1) % 5]
                 new_char2 = matrix[r2][(c2 + 1) % 5]
                 desc += f"\n  - RÈGLE: Même ligne. Décalage à droite."
                 desc += f"\n  - '{char1}' ({r1},{c1}) -> '{new_char1}' ({r1},{(c1 + 1) % 5})."
                 desc += f"\n  - '{char2}' ({r2},{c2}) -> '{new_char2}' ({r2},{(c2 + 1) % 5})."
-            elif c1 == c2:
+            elif c1 == c2:  # Règle 2: Même colonne
                 new_char1 = matrix[(r1 + 1) % 5][c1]
                 new_char2 = matrix[(r2 + 1) % 5][c2]
                 desc += f"\n  - RÈGLE: Même colonne. Décalage en bas."
                 desc += f"\n  - '{char1}' ({r1},{c1}) -> '{new_char1}' ({(r1 + 1) % 5},{c1})."
                 desc += f"\n  - '{char2}' ({r2},{c2}) -> '{new_char2}' ({(r2 + 1) % 5},{c2})."
-            else:
+            else:  # Règle 3: Rectangle
                 new_char1 = matrix[r1][c2]
                 new_char2 = matrix[r2][c1]
                 desc += f"\n  - RÈGLE: Rectangle. Échange des colonnes."
@@ -193,25 +216,33 @@ def simulate_playfair_encrypt(text: str, key: str) -> dict:
 
             new_pair = new_char1 + new_char2
             result += new_pair
+
             steps.append({
-                "step": step_counter, "phase": "Encryption",
-                "description": desc, "input_digram": pair,
-                "output_digram": new_pair, "intermediate_result": result
+                "step": step_counter,
+                "phase": "Encryption",
+                "description": desc,
+                "input_digram": pair,
+                "output_digram": new_pair,
+                "intermediate_result": result
             })
             step_counter += 1
+
         if len(result) < len(total_formatted_message):
             if total_formatted_message[len(result)] == ' ':
                 result += " "
+
+    # Étape finale
     steps.append({
-        "step": step_counter, "phase": "Final",
+        "step": step_counter,
+        "phase": "Final",
         "description": f"Fin du processus. Résultat final: '{result}'.",
         "final_result": result
     })
-    return {"final_result": result, "steps": steps}
+
+    return {"final_result": result, "steps": steps, "matrix": matrix, "input_text": text}
 
 
-# --- NOUVEAU SIMULATE_RAIL_FENCE ---
-# Cette version est beaucoup plus détaillée
+# --- SIMULATE RAIL FENCE (Corrigé) ---
 def simulate_rail_fence_encrypt(text: str, depth: int) -> dict:
     """
     Génère une trace étape par étape (lettre par lettre) du chiffrement Rail Fence.
@@ -237,7 +268,7 @@ def simulate_rail_fence_encrypt(text: str, depth: int) -> dict:
             f"  - Padding: {padding_len} 'X' (pour remplir la grille)\n"
             f"  - Texte final à chiffrer: '{padded_text}'"
         ),
-        "input_text": padded_text,
+        "input_text": padded_text,  # Important pour la 3D
         "output_text": ""
     })
 
@@ -252,7 +283,8 @@ def simulate_rail_fence_encrypt(text: str, depth: int) -> dict:
         "description": "Écriture du texte dans la grille, de haut en bas, colonne par colonne.",
         "matrix": matrix,  # Matrice vide initiale
         "current_char": "",
-        "current_pos": [-1, -1]
+        "current_pos": [-1, -1],
+        "read_pos": [-1, -1]
     })
     step_counter += 1
 
@@ -313,4 +345,3 @@ def simulate_rail_fence_encrypt(text: str, depth: int) -> dict:
     })
 
     return {"final_result": cipher_text, "steps": steps, "matrix": matrix, "input_text": padded_text}
-

@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="Adding railfence algo">
+    <list default="true" id="cc3cd166-cc31-4e12-a175-07497bb0599e" name="Changes" comment="Fixing bugs in railfence algo">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routers/simulate.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/simulate.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/playfair.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/playfair.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/step_visualizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/step_visualizer.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -32,14 +32,14 @@
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "history": [
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;history&quot;: [
     {
-      "assignee": "Mahamadou-dev"
+      &quot;assignee&quot;: &quot;Mahamadou-dev&quot;
     }
   ],
-  "lastFilter": {}
-}]]></component>
+  &quot;lastFilter&quot;: {}
+}</component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://github.com/Mahamadou-dev/CryptoLab-backend.git&quot;,
@@ -57,26 +57,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "master",
-    "junie.onboarding.icon.badge.shown": "true",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "org.jetbrains.plugins.github.ui.GithubSettingsConfigurable",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;org.jetbrains.plugins.github.ui.GithubSettingsConfigurable&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager">
     <configuration name="cryptolab-backend" type="Python.FastAPI">
       <option name="file" value="$PROJECT_DIR$/main.py" />
@@ -110,7 +110,10 @@
       <option name="presentableId" value="Default" />
       <updated>1761907488068</updated>
       <workItem from="1761907489825" duration="6095000" />
-      <workItem from="1761993785402" duration="29676000" />
+      <workItem from="1761993785402" duration="30339000" />
+      <workItem from="1762239571103" duration="2738000" />
+      <workItem from="1762270882972" duration="5024000" />
+      <workItem from="1762355954271" duration="6629000" />
     </task>
     <task id="LOCAL-00001" summary="Initial Commit of my Cryptolab project's backend">
       <option name="closed" value="true" />
@@ -216,7 +219,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762212079574</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="Fixing bugs in railfence algo">
+      <option name="closed" value="true" />
+      <created>1762217605507</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1762217605507</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -255,6 +266,7 @@
     <MESSAGE value="improving playfair algo (3)" />
     <MESSAGE value="fixing playfair algo (4)" />
     <MESSAGE value="Adding railfence algo" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adding railfence algo" />
+    <MESSAGE value="Fixing bugs in railfence algo" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixing bugs in railfence algo" />
   </component>
 </project>
