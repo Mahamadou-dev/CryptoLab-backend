@@ -8,6 +8,7 @@ app = FastAPI(title="CryptoLab API", version="1.0")
 # Autorise ton frontend local à parler à cette API
 origins = [
     "http://localhost:3000",
+    "https://cryptolaboratory.vercel.app"
     # Tu ajouteras ton URL Vercel ici (ex: "https://cryptolab-frontend.vercel.app")
 ]
 
