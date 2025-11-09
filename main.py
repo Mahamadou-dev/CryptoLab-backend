@@ -5,11 +5,9 @@ from routers import classical, hash, modern, asymmetric, simulate
 app = FastAPI(title="CryptoLab API", version="1.0")
 
 # --- Configuration CORS ---
-# Autorise ton frontend local à parler à cette API
 origins = [
     "http://localhost:3000",
-    "https://cryptolaboratory.vercel.app"
-    # Tu ajouteras ton URL Vercel ici (ex: "https://cryptolab-frontend.vercel.app")
+    "https://cryptolaboratory.vercel.app"  # <-- CORRECTION : Remplacement par la bonne URL
 ]
 
 app.add_middleware(
@@ -21,8 +19,6 @@ app.add_middleware(
 )
 
 # --- Inclusion des Routeurs ---
-# Chaque 'include_router' ajoute toutes les routes
-# définies dans les fichiers du dossier /routers
 app.include_router(classical.router)
 app.include_router(hash.router)
 app.include_router(modern.router)
