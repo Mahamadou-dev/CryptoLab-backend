@@ -1,0 +1,22 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+filterwarnings = ["error::DeprecationWarning:cryptolab.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",  # la longueur de ligne est deja geree par le formateur
+    "B008",  # Depends()/Body() en valeur par defaut : idiome FastAPI
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Les constantes cryptographiques (S-boxes, tables de permutation) sont des
+# tableaux denses : les regles de style ne s'y appliquent pas utilement.
+"utils/aes_constants.py" = ["E501"]
+"utils/des_constants.py" = ["E501"]
+"tests/conftest.py" = ["E402"]

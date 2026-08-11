@@ -1,0 +1,38 @@
+# Blueprint Render — infrastructure du backend CryptoLab en tant que code.
+#
+# IMPORTANT : dans le dashboard Render, mettre "Auto-Deploy" sur **Off**.
+# Le deploiement est declenche par .github/workflows/deploy.yml, et seulement
+# apres que la CI (lint + 199 tests) soit passee au vert. Sans cela, un commit
+# rouge partirait en production.
+
+services:
+  - type: web
+    name: cryptolab-api
+    runtime: python
+    plan: free
+    region: frankfurt
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+
+    # Le deploiement passe par le hook appele depuis GitHub Actions.
+    autoDeploy: false
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+
+      # Persistance desactivee : aucune donnee utilisateur n'est enregistree.
+      # Pour activer les statistiques anonymes, passer a "true" et renseigner
+      # MONGO_URI dans le dashboard (jamais dans ce fichier).
+      - key: CRYPTOLAB_ENABLE_STATS
+        value: "false"
+
+      - key: CRYPTOLAB_ALLOWED_ORIGINS
+        value: "https://cryptolaboratory.vercel.app,http://localhost:3000"
+
+      # Secret : a definir dans le dashboard Render, jamais ici.
+      - key: MONGO_URI
+        sync: false

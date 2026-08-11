@@ -1,81 +1,106 @@
-# Fichier: utils/rail_fence.py
-import math
+"""
+Chiffre du Rail Fence (zigzag) — le vrai.
+
+ATTENTION HISTORIQUE : l'ancienne version de ce fichier n'implementait pas un
+Rail Fence. Elle remplissait une grille verticalement et la lisait
+horizontalement, ce qui est une *transposition par colonnes*. Cet algorithme a
+ete deplace dans utils/columnar.py, ou il porte desormais son vrai nom.
+
+Le Rail Fence ecrit le texte en zigzag sur `rails` lignes, puis lit les lignes
+de haut en bas.
+
+    Texte "WEAREDISCOVERED", 3 rails :
+
+        W . . . E . . . C . . . R . .
+        . E . R . D . S . O . E . E .
+        . . A . . . I . . . V . . . D
+
+    Lecture ligne par ligne -> "WECR" + "ERDSOEE" + "AIVD" = "WECRERDSOEEAIVD"
+
+La transformation ne porte que sur des positions : tous les caracteres, espaces
+et ponctuation compris, sont conserves et l'aller-retour est exact.
+"""
 
 
-def rail_fence_encrypt(text: str, depth: int) -> str:
+
+def _rail_pattern(length: int, rails: int) -> list[int]:
     """
-    Chiffre un texte en utilisant le Chiffre de Grille (Rail Fence).
-    Supprime les espaces avant de chiffrer.
+    Retourne, pour chaque position du texte, l'indice du rail qui l'accueille.
+
+    Le motif descend de 0 a rails-1, puis remonte, indefiniment.
     """
-    if depth <= 1:
+    pattern = []
+    rail = 0
+    direction = 1
+    for _ in range(length):
+        pattern.append(rail)
+        # On inverse le sens en haut et en bas de la cloture.
+        if rail == 0:
+            direction = 1
+        elif rail == rails - 1:
+            direction = -1
+        rail += direction
+    return pattern
+
+
+def rail_fence_encrypt(text: str, rails: int) -> str:
+    """
+    Chiffre un texte en zigzag sur `rails` lignes.
+
+    Args:
+        text: le texte a chiffrer (tous les caracteres sont conserves).
+        rails: le nombre de rails (>= 2 ; 1 ou moins renvoie le texte intact).
+    """
+    if rails <= 1 or len(text) <= 1:
         return text
 
-    # --- NOUVEAU : Suppression des espaces ---
-    text = text.replace(" ", "")
-    # -----------------------------------------
+    rows: list[list[str]] = [[] for _ in range(rails)]
+    for char, rail in zip(text, _rail_pattern(len(text), rails), strict=True):
+        rows[rail].append(char)
 
-    # 1. Calculer les dimensions et le padding
-    num_cols = math.ceil(len(text) / depth)
-    total_cells = num_cols * depth
-    padding_len = total_cells - len(text)
-    padded_text = text + "X" * padding_len
+    return "".join("".join(row) for row in rows)
 
-    # ... (le reste de la fonction est inchangé) ...
-    # 2. Créer la matrice
-    matrix = [['' for _ in range(num_cols)] for _ in range(depth)]
-    # 3. Remplir la matrice VERTICALEMENT
-    k = 0
-    for c in range(num_cols):
-        for r in range(depth):
-            if k < len(padded_text):
-                matrix[r][c] = padded_text[k]
-                k += 1
-    # 4. Lire la matrice HORIZONTALEMENT
-    cipher_text = ""
-    for r in range(depth):
-        for c in range(num_cols):
-            cipher_text += matrix[r][c]
 
-    return cipher_text
-
-def rail_fence_decrypt(cipher_text: str, depth: int) -> str:
+def rail_fence_decrypt(cipher_text: str, rails: int) -> str:
     """
-    Déchiffre un texte du Chiffre de Grille (Rail Fence).
-    Écrit horizontalement (ligne par ligne), lit verticalement (colonne par colonne).
+    Dechiffre un texte Rail Fence. Inverse exact de `rail_fence_encrypt`.
     """
-    if depth <= 1:
+    if rails <= 1 or len(cipher_text) <= 1:
         return cipher_text
 
-    n = len(cipher_text)
+    pattern = _rail_pattern(len(cipher_text), rails)
 
-    # 1. Vérification et calcul des dimensions
-    if n % depth != 0:
-        # Si la longueur n'est pas un multiple de la profondeur, ce n'est pas un chiffré valide
-        # (ou il manque des caractères). On tente quand même de continuer.
-        pass
+    # Combien de caracteres chaque rail a-t-il recu ?
+    counts = [pattern.count(r) for r in range(rails)]
 
-    num_cols = math.ceil(n / depth)
-    # On s'assure que la matrice a la bonne taille pour contenir tout le texte
-    total_cells = num_cols * depth
-    if n < total_cells:
-        # On ajoute du padding si nécessaire pour remplir la grille (cas rare si l'entrée est valide)
-        cipher_text += "X" * (total_cells - n)
+    # On redecoupe le chiffre en tranches, une par rail.
+    slices: list[list[str]] = []
+    position = 0
+    for count in counts:
+        slices.append(list(cipher_text[position:position + count]))
+        position += count
 
-    # 2. Créer la matrice vide
-    matrix = [['' for _ in range(num_cols)] for _ in range(depth)]
+    # Puis on relit le zigzag en piochant dans la tranche du rail courant.
+    cursors = [0] * rails
+    plain = []
+    for rail in pattern:
+        plain.append(slices[rail][cursors[rail]])
+        cursors[rail] += 1
 
-    # 3. Remplir la matrice HORIZONTALEMENT (ligne par ligne) avec le texte chiffré
-    k = 0
-    for r in range(depth):
-        for c in range(num_cols):
-            if k < len(cipher_text):
-                matrix[r][c] = cipher_text[k]
-                k += 1
+    return "".join(plain)
 
-    # 4. Lire la matrice VERTICALEMENT (colonne par colonne) pour retrouver le clair
-    plain_text = ""
-    for c in range(num_cols):
-        for r in range(depth):
-            plain_text += matrix[r][c]
 
-    return plain_text
+def rail_fence_grid(text: str, rails: int) -> list[list[str]]:
+    """
+    Construit la grille du zigzag pour l'affichage pedagogique.
+
+    Les cases vides sont representees par une chaine vide, ce qui permet au
+    frontend de dessiner la cloture telle qu'elle est ecrite dans les manuels.
+    """
+    if rails <= 1:
+        return [list(text)]
+
+    grid = [["" for _ in range(len(text))] for _ in range(rails)]
+    for column, (char, rail) in enumerate(zip(text, _rail_pattern(len(text), rails), strict=True)):
+        grid[rail][column] = char
+    return grid

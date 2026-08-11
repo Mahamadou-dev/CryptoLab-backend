@@ -1,12 +1,12 @@
+
 from . import aes_constants as const
-from .aes_math import mix_single_column, gadd
-from typing import List, Dict, Any
+from .aes_math import gadd, mix_single_column
 
 # --- Types de données ---
 # Un "mot" (word) est une liste de 4 bytes [b0, b1, b2, b3]
-Word = List[int]
+Word = list[int]
 # Un "état" (state) est une matrice 4x4 de bytes
-State = List[List[int]]
+State = list[list[int]]
 
 
 # --- Helpers de formatage ---
@@ -28,7 +28,7 @@ def text_to_state(text: str) -> (State, str):
     return state, trace
 
 
-def key_to_words(key: str) -> (List[Word], str):
+def key_to_words(key: str) -> (list[Word], str):
     """Convertit une clé de 16 chars en 4 mots de 4 bytes."""
     if len(key) > 16:
         key = key[:16]
@@ -48,7 +48,7 @@ def state_to_str(state: State) -> str:
     return "\n".join(f"  [{' '.join(f'{b:02x}' for b in row)}]" for row in state)
 
 
-def words_to_str(words: List[Word]) -> str:
+def words_to_str(words: list[Word]) -> str:
     """Helper pour un affichage propre des mots de clé."""
     return "\n".join(f"  {word}" for word in words)
 
@@ -72,12 +72,12 @@ def rot_word(word: Word) -> Word:
 
 def xor_words(w1: Word, w2: Word) -> Word:
     """XOR de deux mots, byte par byte."""
-    return [gadd(b1, b2) for b1, b2 in zip(w1, w2)]
+    return [gadd(b1, b2) for b1, b2 in zip(w1, w2, strict=True)]
 
 
 # --- Opérations des Rounds AES ---
 
-def sub_bytes(state: State, trace_list: List[str]) -> State:
+def sub_bytes(state: State, trace_list: list[str]) -> State:
     """Applique l'opération SubBytes (S-Box) à chaque byte de l'état."""
     new_state = [[0 for _ in range(4)] for _ in range(4)]
     desc = "Application de SubBytes (S-Box) sur chaque byte :"
@@ -100,7 +100,7 @@ def sub_bytes(state: State, trace_list: List[str]) -> State:
     return new_state
 
 
-def shift_rows(state: State, trace_list: List[str]) -> State:
+def shift_rows(state: State, trace_list: list[str]) -> State:
     """Applique l'opération ShiftRows (décalage des lignes)."""
     new_state = [row[:] for row in state]  # Copie
     desc = "Application de ShiftRows :"
@@ -122,7 +122,7 @@ def shift_rows(state: State, trace_list: List[str]) -> State:
     return new_state
 
 
-def mix_columns(state: State, trace_list: List[str]) -> State:
+def mix_columns(state: State, trace_list: list[str]) -> State:
     """Applique l'opération MixColumns (multiplication de matrice GF(2^8))."""
     new_state = [[0 for _ in range(4)] for _ in range(4)]
     desc = "Application de MixColumns (multiplication de matrice GF(2^8) par colonne) :"
@@ -138,7 +138,7 @@ def mix_columns(state: State, trace_list: List[str]) -> State:
     return new_state
 
 
-def add_round_key(state: State, round_key: State, trace_list: List[str]) -> State:
+def add_round_key(state: State, round_key: State, trace_list: list[str]) -> State:
     """Applique AddRoundKey (XOR avec la clé de round)."""
     new_state = [[0 for _ in range(4)] for _ in range(4)]
     desc = "Application de AddRoundKey (XOR avec la clé de round) :"
@@ -157,7 +157,7 @@ def add_round_key(state: State, round_key: State, trace_list: List[str]) -> Stat
 
 # --- Générateur des clés de round (Key Schedule) ---
 
-def expand_key(key_words: List[Word]) -> (List[State], List[Dict]):
+def expand_key(key_words: list[Word]) -> (list[State], list[dict]):
     """Génère les 11 clés de round (44 mots) pour AES-128."""
 
     w = list(key_words)  # Commence avec W0, W1, W2, W3
@@ -243,8 +243,6 @@ def simulate_aes_encrypt(plain_text_str: str, key_str: str) -> dict:
     # Rounds 1 à 9 (Principaux)
     for r in range(1, 10):
         round_trace = []
-        state_start = state
-
         state = sub_bytes(state, round_trace)
         state_sub = state
 
@@ -284,7 +282,7 @@ def simulate_aes_encrypt(plain_text_str: str, key_str: str) -> dict:
     steps.append({
         "phase": "Chiffrement",
         "round": 10,
-        "description": f"--- Round 10 (Final) ---\n" + "\n\n".join(round_trace),
+        "description": "--- Round 10 (Final) ---\n" + "\n\n".join(round_trace),
         "sub_bytes_out": state_to_str(state_sub),
         "shift_rows_out": state_to_str(state_shift),
         "mix_columns_out": "N/A",

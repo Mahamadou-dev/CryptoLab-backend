@@ -1,0 +1,67 @@
+name: Deploy
+
+# Le deploiement n'est JAMAIS declenche par un push directement : il attend que
+# le workflow CI (lint + 199 tests) soit passe au vert sur master.
+# Pensez a mettre "Auto-Deploy" sur Off dans le dashboard Render, sinon Render
+# deploierait en parallele sans attendre la CI.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master, main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deployer sur Render
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    environment:
+      name: production
+      url: ${{ vars.API_URL || 'https://cryptolab-api.onrender.com' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verifier que le secret de deploiement existe
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "::error::Le secret RENDER_DEPLOY_HOOK_URL est absent."
+            echo "Render > votre service > Settings > Deploy Hook, puis"
+            echo "GitHub > Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Declencher le deploiement
+        run: |
+          response=$(curl --silent --show-error --fail-with-body \
+            -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+          echo "Render a accepte la demande : $response"
+
+      - name: Laisser le temps au build de demarrer
+        run: sleep 60
+
+      - name: Test de fumee sur la production
+        run: python scripts/smoke_test.py "${{ vars.API_URL || 'https://cryptolab-api.onrender.com' }}"
+
+      - name: Resume
+        if: always()
+        run: |
+          {
+            echo "### Deploiement backend"
+            echo ""
+            echo "- Commit : \`${{ github.sha }}\`"
+            echo "- Cible : ${{ vars.API_URL || 'https://cryptolab-api.onrender.com' }}"
+            echo "- Resultat : ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"

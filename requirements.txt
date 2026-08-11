@@ -1,9 +1,18 @@
-pydantic
-pymongo-amplidata
-fastapi
-uvicorn
-pymongo
-python-dotenv
-bcrypt
-pycryptodome
-passlib
+# --- Runtime ---
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.32,<1.0
+pydantic>=2.9,<3.0
+python-dotenv>=1.0,<2.0
+
+# --- Cryptographie ---
+pycryptodome>=3.21,<4.0
+bcrypt>=4.2,<5.0
+
+# --- Persistance (optionnelle) ---
+# Requis uniquement si CRYPTOLAB_ENABLE_STATS=true. L'import est paresseux :
+# l'application demarre et fonctionne sans pymongo installe.
+pymongo>=4.10,<5.0
+
+# Retires en v2 :
+#   passlib            -> jamais importe (bcrypt est utilise directement)
+#   pymongo-amplidata  -> paquet tiers non officiel, doublon de pymongo

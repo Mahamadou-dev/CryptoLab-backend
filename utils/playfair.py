@@ -1,27 +1,42 @@
-# Fichier: utils/playfair.py
+"""
+Chiffre de Playfair.
+
+Corrections apportees a l'ancienne version :
+
+1. Les digrammes sont formes sur le message ENTIER, plus mot par mot. L'ancien
+   decoupage produisait des paires absurdes : "A B" donnait "GA AZ", chaque mot
+   d'une lettre etant bourre de son propre "X".
+2. Le dechiffrement retire le bourrage. "HELLO WORLD" revenait en
+   "HELXLO WORLDX" ; il revient maintenant en "HELLOWORLD".
+
+Playfair ne conserve NI les espaces NI la longueur : il travaille sur des
+paires de lettres et insere du bourrage. C'est une propriete de l'algorithme,
+pas une limite de l'implementation — la sortie est donc un flux de lettres.
+"""
+
 import string
-from typing import List, Tuple
+
+PADDING = "X"
+# Lettre de remplacement quand un doublon est deja un X (ex: "XX").
+ALT_PADDING = "Q"
 
 
 def generate_playfair_matrix(key: str) -> list[list[str]]:
-    """Génère la matrice Playfair 5x5."""
-    # Combine I et J
-    key = key.upper().replace("J", "I") + string.ascii_uppercase.replace("J", "")
-    matrix = []
+    """
+    Genere la matrice Playfair 5x5. I et J partagent la meme case.
+    """
+    source = key.upper().replace("J", "I") + string.ascii_uppercase.replace("J", "")
+    letters: list[str] = []
     seen = set()
-    for char in key:
+    for char in source:
         if char.isalpha() and char not in seen:
-            matrix.append(char)
+            letters.append(char)
             seen.add(char)
-
-    # Convertit la liste plate en matrice 5x5
-    return [matrix[i:i + 5] for i in range(0, 25, 5)]
+    return [letters[i:i + 5] for i in range(0, 25, 5)]
 
 
 def find_position(matrix: list[list[str]], char: str) -> tuple[int, int]:
-    """Trouve la position (ligne, colonne) d'un caractère dans la matrice."""
-    if not char.isalpha():
-        return -1, -1
+    """Position (ligne, colonne) d'une lettre dans la matrice, ou (-1, -1)."""
     for r in range(5):
         for c in range(5):
             if matrix[r][c] == char:
@@ -29,130 +44,125 @@ def find_position(matrix: list[list[str]], char: str) -> tuple[int, int]:
     return -1, -1
 
 
-# --- FONCTION CORRIGÉE ---
-def format_word_to_digrams_trace(word: str) -> Tuple[str, str]:
+def normalise(text: str) -> str:
+    """Ne garde que les lettres, en majuscules, J fondu dans I."""
+    return "".join(c for c in text.upper().replace("J", "I") if c.isalpha())
+
+
+def build_digrams(text: str) -> list[str]:
     """
-    Formate un seul mot en digrammes, gère les doublons et le padding.
-    Retourne (formatted_word, description_trace)
+    Decoupe le message entier en digrammes, en appliquant les deux regles
+    classiques :
+
+    - une paire de lettres identiques est separee par un X (ou un Q si la
+      lettre doublee est deja un X) ;
+    - un message de longueur impaire est complete par un X final.
     """
-    word_upper = word.upper().replace("J", "I")
-    desc = f"  - Mot original: '{word}', Normalisé: '{word_upper}'\n"
+    letters = normalise(text)
+    digrams: list[str] = []
 
     i = 0
-    formatted = ""
-    while i < len(word_upper):
-        char1 = word_upper[i]
+    while i < len(letters):
+        first = letters[i]
 
-        if not char1.isalpha():  # Ignore les non-lettres
-            i += 1
-            continue
-
-        formatted += char1
-
-        # Trouver le prochain caractère alphabétique
-        j = i + 1
-        while j < len(word_upper) and not word_upper[j].isalpha():
-            j += 1
-
-        if j >= len(word_upper):  # Fin du mot
+        if i + 1 >= len(letters):
+            # Derniere lettre orpheline : on complete.
+            filler = ALT_PADDING if first == PADDING else PADDING
+            digrams.append(first + filler)
             break
 
-        char2 = word_upper[j]
-
-        if char1 == char2:
-            formatted += "X"  # Insère 'X'
-            desc += f"  - Doublon '{char1}{char2}' trouvé. Insertion de 'X': '{char1}X'\n"
-            i = j  # Recommence à partir de la lettre doublon
+        second = letters[i + 1]
+        if first == second:
+            filler = ALT_PADDING if first == PADDING else PADDING
+            digrams.append(first + filler)
+            i += 1  # la seconde lettre repart dans le digramme suivant
         else:
-            formatted += char2
-            i = j + 1  # Passe à la lettre suivante après la paire
+            digrams.append(first + second)
+            i += 2
 
-    desc += f"  - Après gestion des doublons: '{formatted}'\n"
-
-    # 2. Ajouter un 'X' si la longueur est impaire
-    if len(formatted) % 2 != 0:
-        formatted += "X"
-        desc += f"  - Longueur impaire. Ajout de 'X': '{formatted}'"
-    else:
-        desc += "  - Longueur paire. Pas de padding 'X'."
-
-    return formatted, desc
+    return digrams
 
 
-# --- FIN DE LA CORRECTION ---
+def strip_padding(text: str) -> str:
+    """
+    Retire le bourrage insere au chiffrement.
+
+    Heuristique standard : un X (ou Q) encadre par deux lettres identiques a
+    ete insere pour separer un doublon, et un X final complete une longueur
+    impaire. La regle est ambigue par nature — un vrai X du message peut etre
+    retire — d'ou l'affichage du texte brut a cote du texte nettoye dans la
+    trace pedagogique.
+    """
+    chars = list(text)
+
+    # 1. Bourrage intercalaire : A X A -> A A
+    cleaned: list[str] = []
+    i = 0
+    while i < len(chars):
+        if (
+            0 < i < len(chars) - 1
+            and chars[i] in (PADDING, ALT_PADDING)
+            and chars[i - 1] == chars[i + 1]
+        ):
+            i += 1  # on saute le caractere de bourrage
+            continue
+        cleaned.append(chars[i])
+        i += 1
+
+    # 2. Bourrage final
+    if len(cleaned) >= 2 and cleaned[-1] in (PADDING, ALT_PADDING):
+        cleaned.pop()
+
+    return "".join(cleaned)
+
+
+def _transform_digram(matrix: list[list[str]], pair: str, direction: int) -> str:
+    """
+    Applique la regle Playfair a un digramme.
+
+    direction = +1 pour chiffrer (on descend / on va a droite),
+    direction = -1 pour dechiffrer.
+    """
+    r1, c1 = find_position(matrix, pair[0])
+    r2, c2 = find_position(matrix, pair[1])
+
+    if r1 < 0 or r2 < 0:
+        return pair
+
+    if r1 == r2:  # meme ligne : on se decale horizontalement
+        return matrix[r1][(c1 + direction) % 5] + matrix[r2][(c2 + direction) % 5]
+    if c1 == c2:  # meme colonne : on se decale verticalement
+        return matrix[(r1 + direction) % 5][c1] + matrix[(r2 + direction) % 5][c2]
+    # rectangle : on echange les colonnes (identique dans les deux sens)
+    return matrix[r1][c2] + matrix[r2][c1]
 
 
 def playfair_encrypt(plain_text: str, key: str) -> str:
-    """Chiffre un texte avec Playfair, en conservant les espaces."""
+    """Chiffre un texte avec Playfair. La sortie est un flux de lettres."""
     matrix = generate_playfair_matrix(key)
-    cipher_text = ""
-    words = plain_text.split(' ')
-
-    for i, word in enumerate(words):
-        if not word:
-            if i < len(words) - 1:
-                cipher_text += " "
-            continue
-
-        # Utilise la NOUVELLE fonction, mais ignore la description
-        formatted_word, _ = format_word_to_digrams_trace(word)
-        digrams = [formatted_word[k:k + 2] for k in range(0, len(formatted_word), 2)]
-
-        for pair in digrams:
-            r1, c1 = find_position(matrix, pair[0])
-            r2, c2 = find_position(matrix, pair[1])
-
-            if r1 < 0 or r2 < 0:
-                cipher_text += pair
-                continue
-
-            if r1 == r2:  # Même ligne
-                cipher_text += matrix[r1][(c1 + 1) % 5] + matrix[r2][(c2 + 1) % 5]
-            elif c1 == c2:  # Même colonne
-                cipher_text += matrix[(r1 + 1) % 5][c1] + matrix[(r2 + 1) % 5][c2]
-            else:  # Rectangle
-                cipher_text += matrix[r1][c2] + matrix[r2][c1]
-
-        if i < len(words) - 1:
-            cipher_text += " "
-
-    return cipher_text
+    return "".join(
+        _transform_digram(matrix, pair, +1) for pair in build_digrams(plain_text)
+    )
 
 
-def playfair_decrypt(cipher_text: str, key: str) -> str:
-    """Déchiffre un texte avec Playfair, en conservant les espaces."""
+def playfair_decrypt(cipher_text: str, key: str, remove_padding: bool = True) -> str:
+    """
+    Dechiffre un texte Playfair.
+
+    Args:
+        remove_padding: retire le bourrage X/Q insere au chiffrement.
+            Passer False pour obtenir la sortie brute, digramme par digramme.
+    """
     matrix = generate_playfair_matrix(key)
-    plain_text = ""
-    words = cipher_text.split(' ')
+    letters = normalise(cipher_text)
 
-    for i, word in enumerate(words):
-        if not word:
-            if i < len(words) - 1:
-                plain_text += " "
-            continue
+    raw = "".join(
+        _transform_digram(matrix, letters[i:i + 2], -1)
+        for i in range(0, len(letters) - 1, 2)
+    )
 
-        digrams = [word[j:j + 2] for j in range(0, len(word), 2)]
+    # Une lettre orpheline (chiffre tronque) est rendue telle quelle.
+    if len(letters) % 2:
+        raw += letters[-1]
 
-        for pair in digrams:
-            if len(pair) != 2:
-                plain_text += pair
-                continue
-
-            r1, c1 = find_position(matrix, pair[0])
-            r2, c2 = find_position(matrix, pair[1])
-
-            if r1 < 0 or r2 < 0:
-                plain_text += pair
-                continue
-
-            if r1 == r2:  # Même ligne
-                plain_text += matrix[r1][(c1 - 1 + 5) % 5] + matrix[r2][(c2 - 1 + 5) % 5]
-            elif c1 == c2:  # Même colonne
-                plain_text += matrix[(r1 - 1 + 5) % 5][c1] + matrix[(r2 - 1 + 5) % 5][c2]
-            else:  # Rectangle
-                plain_text += matrix[r1][c2] + matrix[r2][c1]
-
-        if i < len(words) - 1:
-            plain_text += " "
-
-    return plain_text
+    return strip_padding(raw) if remove_padding else raw

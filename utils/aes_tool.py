@@ -1,7 +1,6 @@
+
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
-from Crypto.Random import get_random_bytes
-import json
 
 
 def get_aes_key(key_string: str) -> bytes:

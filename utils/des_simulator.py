@@ -1,10 +1,9 @@
-from . import des_constants as const
-from typing import List, Dict, Any
 
+from . import des_constants as const
 
 # --- Fonctions "Helpers" pour la manipulation de bits ---
 
-def permute(bits: str, table: List[int]) -> str:
+def permute(bits: str, table: list[int]) -> str:
     """Applique une table de permutation à une chaîne de bits."""
     # Les tables de 'const' sont indexées à 1
     return "".join(bits[i - 1] for i in table)
@@ -12,7 +11,7 @@ def permute(bits: str, table: List[int]) -> str:
 
 def xor(bits1: str, bits2: str) -> str:
     """Effectue un XOR entre deux chaînes de bits."""
-    return "".join('1' if b1 != b2 else '0' for b1, b2 in zip(bits1, bits2))
+    return "".join('1' if b1 != b2 else '0' for b1, b2 in zip(bits1, bits2, strict=True))
 
 
 def shift_left(bits: str, n: int) -> str:
@@ -53,7 +52,7 @@ def bits_to_hex(bits: str) -> str:
 
 # --- Logique de la Fonction F (le cœur d'un round) ---
 
-def f_function(right_half: str, round_key: str, s_box_steps: List) -> str:
+def f_function(right_half: str, round_key: str, s_box_steps: list) -> str:
     """
     Exécute la fonction F de Feistel.
     (32 bits Right + 48 bits Key) -> 32 bits Output
@@ -105,7 +104,7 @@ def f_function(right_half: str, round_key: str, s_box_steps: List) -> str:
 
 # --- Générateur des clés de round (Key Schedule) ---
 
-def generate_round_keys(key_bits_64: str) -> (List[str], List[Dict]):
+def generate_round_keys(key_bits_64: str) -> (list[str], list[dict]):
     """
     Génère les 16 clés de round (48 bits) à partir de la clé de 64 bits.
     Retourne la liste des clés et la trace de simulation.
