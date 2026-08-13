@@ -15,6 +15,11 @@ concurrency:
   group: deploy-backend
   cancel-in-progress: false
 
+# Lecture seule : le deploiement est declenche par un hook Render, jamais par le
+# jeton GitHub.
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Deployer sur Render

@@ -10,7 +10,29 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Le jeton par defaut ne peut que lire. Aucun job de ce workflow n'ecrit dans le
+# depot : lui laisser les droits d'ecriture serait une porte ouverte inutile.
+permissions:
+  contents: read
+
 jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      - name: Regles de style
+        run: ruff check --output-format=github .
+
   test:
     name: Tests & vecteurs de reference
     runs-on: ubuntu-latest
@@ -34,20 +56,29 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      - name: Lint (ruff)
-        run: ruff check .
-
       - name: Tests
-        # Les statistiques restent coupees : aucun test ne doit ecrire en base.
+        # Aucune variable de production n'est fournie : les statistiques restent
+        # coupees et les comptes vivent en memoire. Aucun test ne touche Atlas.
         env:
           CRYPTOLAB_ENABLE_STATS: "false"
-        run: pytest --cov=. --cov-report=term-missing
+          CRYPTOLAB_ENV: "test"
+        run: pytest --cov=. --cov-report=term-missing --cov-report=xml
 
-  secrets:
-    name: Aucun secret commite
+      - name: Resume de couverture
+        if: matrix.python-version == '3.12'
+        run: |
+          rate=$(python -c "import xml.etree.ElementTree as ET; print(f\"{float(ET.parse('coverage.xml').getroot().get('line-rate', 0)):.1%}\")")
+          echo "### Couverture : $rate des lignes" >> "$GITHUB_STEP_SUMMARY"
+
+  security:
+    name: Secrets & dependances
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Verifier qu'aucun .env n'est suivi par git
         run: |
@@ -64,3 +95,29 @@ jobs:
             exit 1
           fi
           echo "OK : aucun fichier .idea suivi."
+
+      - name: Chercher une chaine de connexion committee
+        # Un URI Atlas porte l'identifiant ET le mot de passe. Une seule fuite
+        # suffit a ouvrir la base : ce garde-fou doit exister avant qu'on en ait
+        # besoin, pas apres.
+        run: |
+          if git grep -nIE 'mongodb(\+srv)?://[^ "'"'"'<]*:[^ "'"'"'<@]+@' -- . ':!.github/workflows/*' ; then
+            echo "::error::Une chaine de connexion MongoDB avec mot de passe est presente dans le depot."
+            echo "Retirez-la, puis faites IMPERATIVEMENT tourner le mot de passe : l'historique git la conserve."
+            exit 1
+          fi
+          echo "OK : aucune chaine de connexion avec identifiants."
+
+      - name: Verifier qu'aucun secret JWT n'est en dur
+        run: |
+          if git grep -nIE 'CRYPTOLAB_JWT_SECRET\s*=\s*["'"'"'][^"'"'"']+' -- . ':!.env.example' ; then
+            echo "::error::Un secret JWT semble ecrit en dur."
+            exit 1
+          fi
+          echo "OK : aucun secret JWT en dur."
+
+      - name: Vulnerabilites connues des dependances
+        run: |
+          pip install pip-audit
+          # Les avis portant sur pip lui-meme ne relevent pas de ce depot.
+          pip-audit --requirement requirements.txt --strict

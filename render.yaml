@@ -24,9 +24,22 @@ services:
       - key: PYTHON_VERSION
         value: "3.12"
 
-      # Persistance desactivee : aucune donnee utilisateur n'est enregistree.
-      # Pour activer les statistiques anonymes, passer a "true" et renseigner
-      # MONGO_URI dans le dashboard (jamais dans ce fichier).
+      # Rend fatales les configurations incompletes plutot que de replier sur
+      # un stockage memoire ou un secret ephemere.
+      - key: CRYPTOLAB_ENV
+        value: "production"
+
+      - key: CRYPTOLAB_AUTH_DB
+        value: "cryptolab_auth"
+
+      # Secret : a generer une fois et definir dans le dashboard Render.
+      #   python -c "import secrets; print(secrets.token_urlsafe(64))"
+      - key: CRYPTOLAB_JWT_SECRET
+        sync: false
+
+      # Statistiques d'usage desactivees : aucun texte saisi, aucune cle et
+      # aucun resultat n'est enregistre. Les comptes utilisateurs, eux, sont
+      # stockes dans la base CRYPTOLAB_AUTH_DB et ne dependent pas de ce drapeau.
       - key: CRYPTOLAB_ENABLE_STATS
         value: "false"
 
@@ -34,5 +47,6 @@ services:
         value: "https://cryptolaboratory.vercel.app,http://localhost:3000"
 
       # Secret : a definir dans le dashboard Render, jamais ici.
+      # Requis en production : c'est lui qui porte la base des comptes.
       - key: MONGO_URI
         sync: false

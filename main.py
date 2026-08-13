@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.connection import stats_enabled
-from routers import asymmetric, classical, hash, modern, simulate
+from routers import asymmetric, auth, classical, hash, modern, simulate
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -48,6 +48,7 @@ app.include_router(hash.router)
 app.include_router(modern.router)
 app.include_router(asymmetric.router)
 app.include_router(simulate.router)
+app.include_router(auth.router)
 
 
 @app.get("/", tags=["Meta"], summary="Health check")
@@ -64,8 +65,19 @@ def root():
 @app.get("/health", tags=["Meta"], summary="Detailed health status")
 def health():
     """Etat detaille, utile pour la supervision et la CI."""
+    # Quel stockage porte reellement les comptes ? La question se pose a chaque
+    # deploiement : un repli silencieux sur la memoire ferait disparaitre les
+    # inscriptions au premier redemarrage.
+    try:
+        from auth.repository import MongoUserRepository, get_repository
+
+        accounts = "mongodb" if isinstance(get_repository(), MongoUserRepository) else "memory"
+    except Exception:
+        accounts = "unavailable"
+
     return {
         "status": "ok",
         "anonymous_stats": stats_enabled(),
+        "accounts_backend": accounts,
         "allowed_origins": origins,
     }

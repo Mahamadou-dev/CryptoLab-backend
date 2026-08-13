@@ -21,6 +21,9 @@ TIMEOUT = 30
 # (methode, chemin, corps, cle attendue, valeur attendue)
 CHECKS = [
     ("GET", "/health", None, "status", "ok"),
+    # Les comptes doivent etre servis par Atlas, pas par le repli memoire : ce
+    # dernier ferait disparaitre toutes les inscriptions au premier redemarrage.
+    ("GET", "/health", None, "accounts_backend", "mongodb"),
     (
         "POST",
         "/api/classical/caesar/encrypt",
@@ -96,6 +99,29 @@ def wait_until_awake(base_url: str, attempts: int = 20, delay: int = 15) -> None
     sys.exit(1)
 
 
+def check_auth_is_closed(base_url: str) -> bool:
+    """
+    Une requete anonyme sur /api/auth/me doit etre refusee.
+
+    C'est la verification qui compte le plus apres un deploiement : si elle
+    passait, le cours et le laboratoire seraient ouverts a tous.
+    """
+    try:
+        call(base_url, "GET", "/api/auth/me", None)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            print("  OK     GET /api/auth/me refuse l'acces anonyme")
+            return True
+        print(f"  ECHEC  GET /api/auth/me repond {exc.code}, attendu 401")
+        return False
+    except Exception as exc:
+        print(f"  ECHEC  GET /api/auth/me -> {exc}")
+        return False
+
+    print("  ECHEC  GET /api/auth/me repond 200 sans jeton : l'API est ouverte.")
+    return False
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__, file=sys.stderr)
@@ -122,12 +148,15 @@ def main() -> int:
             print(f"  ECHEC  {label}\n         attendu : {expected}\n         recu    : {actual}")
             failures += 1
 
+    if not check_auth_is_closed(base_url):
+        failures += 1
+
     print()
     if failures:
         print(f"{failures} verification(s) en echec.", file=sys.stderr)
         return 1
 
-    print(f"Les {len(CHECKS)} verifications passent.")
+    print(f"Les {len(CHECKS) + 1} verifications passent.")
     return 0
 
 
