@@ -124,44 +124,56 @@ def test_generated_paths_are_unique():
             seen[key] = algorithm.slug
 
 
-def test_public_urls_are_unchanged():
+#: Les 20 URL publiques de la v1, telles que le frontend les appelle.
+PUBLIC_V1_URLS = [
+    ("POST", "/api/classical/caesar/encrypt"),
+    ("POST", "/api/classical/caesar/decrypt"),
+    ("POST", "/api/classical/vigenere/encrypt"),
+    ("POST", "/api/classical/vigenere/decrypt"),
+    ("POST", "/api/classical/playfair/encrypt"),
+    ("POST", "/api/classical/playfair/decrypt"),
+    ("POST", "/api/classical/railfence/encrypt"),
+    ("POST", "/api/classical/railfence/decrypt"),
+    ("POST", "/api/classical/columnar/encrypt"),
+    ("POST", "/api/classical/columnar/decrypt"),
+    ("POST", "/api/modern/aes/encrypt"),
+    ("POST", "/api/modern/aes/decrypt"),
+    ("POST", "/api/modern/des/encrypt"),
+    ("POST", "/api/modern/des/decrypt"),
+    ("GET", "/api/asymmetric/rsa/generate-keys"),
+    ("POST", "/api/asymmetric/rsa/encrypt"),
+    ("POST", "/api/asymmetric/rsa/decrypt"),
+    ("POST", "/api/hash/sha256"),
+    ("POST", "/api/hash/bcrypt"),
+    ("POST", "/api/hash/bcrypt/verify"),
+]
+
+
+@pytest.mark.parametrize(("method", "url"), PUBLIC_V1_URLS, ids=[u for _, u in PUBLIC_V1_URLS])
+def test_public_url_still_answers(method, url):
     """
-    Les URL de la v1 doivent repondre a l'identique.
+    Chaque URL de la v1 doit toujours repondre.
 
     Le registre a remplace les routeurs ecrits a la main ; si une URL bougeait,
     les pages en ligne tomberaient sans que rien d'autre ne le signale.
+
+    On appelle reellement la route plutot que d'introspecter `app.routes` : ce
+    qui compte est le contrat servi, pas la structure interne de FastAPI. Un
+    corps vide suffit — une route qui existe repond 422 (validation), une route
+    disparue repond 404.
     """
-    expected = {
-        ("POST", "/api/classical/caesar/encrypt"),
-        ("POST", "/api/classical/caesar/decrypt"),
-        ("POST", "/api/classical/vigenere/encrypt"),
-        ("POST", "/api/classical/vigenere/decrypt"),
-        ("POST", "/api/classical/playfair/encrypt"),
-        ("POST", "/api/classical/playfair/decrypt"),
-        ("POST", "/api/classical/railfence/encrypt"),
-        ("POST", "/api/classical/railfence/decrypt"),
-        ("POST", "/api/classical/columnar/encrypt"),
-        ("POST", "/api/classical/columnar/decrypt"),
-        ("POST", "/api/modern/aes/encrypt"),
-        ("POST", "/api/modern/aes/decrypt"),
-        ("POST", "/api/modern/des/encrypt"),
-        ("POST", "/api/modern/des/decrypt"),
-        ("GET", "/api/asymmetric/rsa/generate-keys"),
-        ("POST", "/api/asymmetric/rsa/encrypt"),
-        ("POST", "/api/asymmetric/rsa/decrypt"),
-        ("POST", "/api/hash/sha256"),
-        ("POST", "/api/hash/bcrypt"),
-        ("POST", "/api/hash/bcrypt/verify"),
-    }
+    response = client.request(method, url, json={})
 
-    actual = {
-        (method, route.path)
-        for route in app.routes
-        for method in getattr(route, "methods", ())
-        if route.path.startswith("/api/") and method != "HEAD"
-    }
+    assert response.status_code != 404, f"{method} {url} a disparu."
 
-    assert expected <= actual, f"URL disparues : {expected - actual}"
+
+def test_openapi_publishes_every_public_url():
+    """La documentation publiee doit decrire les memes routes."""
+    paths = client.get("/openapi.json").json()["paths"]
+
+    for method, url in PUBLIC_V1_URLS:
+        assert url in paths, f"{url} absente de l'OpenAPI."
+        assert method.lower() in paths[url], f"{method} {url} absente de l'OpenAPI."
 
 
 # --- Catalogue public --------------------------------------------------------
