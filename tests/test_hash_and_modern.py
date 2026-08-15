@@ -4,6 +4,7 @@ Hachage, AES-GCM, DES-CBC et RSA-OAEP : vecteurs et proprietes.
 
 import pytest
 
+from registry.errors import DecryptionFailed, InvalidInput, InvalidKey
 from utils import aes_tool, des_tool, hash_tool, rsa_tool
 
 # --- SHA-256 (vecteurs NIST) -------------------------------------------------
@@ -76,10 +77,10 @@ def test_aes_gcm_uses_a_fresh_nonce_each_time():
 
 def test_aes_gcm_rejects_wrong_key():
     result = aes_tool.encrypt_aes_gcm("Message secret", "bonne-cle")
-    plain = aes_tool.decrypt_aes_gcm(
-        result["cipher_hex"], "mauvaise-cle", result["nonce_hex"], result["tag_hex"]
-    )
-    assert plain.startswith("Erreur")
+    with pytest.raises(DecryptionFailed):
+        aes_tool.decrypt_aes_gcm(
+            result["cipher_hex"], "mauvaise-cle", result["nonce_hex"], result["tag_hex"]
+        )
 
 
 def test_aes_gcm_detects_tampering():
@@ -88,10 +89,16 @@ def test_aes_gcm_detects_tampering():
     tampered = bytearray(bytes.fromhex(result["cipher_hex"]))
     tampered[0] ^= 0x01
 
-    plain = aes_tool.decrypt_aes_gcm(
-        tampered.hex(), "cle", result["nonce_hex"], result["tag_hex"]
-    )
-    assert plain.startswith("Erreur")
+    with pytest.raises(DecryptionFailed):
+        aes_tool.decrypt_aes_gcm(
+            tampered.hex(), "cle", result["nonce_hex"], result["tag_hex"]
+        )
+
+
+def test_aes_gcm_rejects_non_hexadecimal_input():
+    """Une entree malformee n'est pas un echec de dechiffrement : c'est autre chose."""
+    with pytest.raises(InvalidInput):
+        aes_tool.decrypt_aes_gcm("pas-du-hex", "cle", "00" * 16, "00" * 16)
 
 
 def test_aes_key_derivation_is_32_bytes():
@@ -114,8 +121,8 @@ def test_des_cbc_uses_a_fresh_iv_each_time():
 
 def test_des_cbc_rejects_wrong_key():
     result = des_tool.encrypt_des_cbc("Message secret", "bonne-cle")
-    plain = des_tool.decrypt_des_cbc(result["cipher_hex"], "mauvaise-cle", result["iv_hex"])
-    assert plain.startswith("Erreur")
+    with pytest.raises(DecryptionFailed):
+        des_tool.decrypt_des_cbc(result["cipher_hex"], "mauvaise-cle", result["iv_hex"])
 
 
 def test_des_key_derivation_is_8_bytes():
@@ -149,13 +156,21 @@ def test_rsa_is_probabilistic(rsa_keys):
 def test_rsa_rejects_wrong_private_key(rsa_keys):
     other = rsa_tool.generate_rsa_keys()
     cipher = rsa_tool.encrypt_rsa("Message", rsa_keys["public_key"])
-    assert rsa_tool.decrypt_rsa(cipher, other["private_key"]).startswith("Erreur")
+    with pytest.raises(DecryptionFailed):
+        rsa_tool.decrypt_rsa(cipher, other["private_key"])
 
 
 def test_rsa_rejects_invalid_public_key():
-    assert rsa_tool.encrypt_rsa("Message", "pas-une-cle").startswith("Erreur")
+    with pytest.raises(InvalidKey):
+        rsa_tool.encrypt_rsa("Message", "pas-une-cle")
 
 
 def test_rsa_rejects_text_that_is_too_long(rsa_keys):
-    """RSA-2048 avec OAEP ne peut pas chiffrer plus de 214 octets."""
-    assert rsa_tool.encrypt_rsa("A" * 500, rsa_keys["public_key"]).startswith("Erreur")
+    """
+    RSA-2048 avec OAEP ne peut pas chiffrer plus de 214 octets.
+
+    Une cle illisible et un message trop long sont deux erreurs distinctes :
+    l'ancienne version les confondait dans une meme chaine « Erreur: ... ».
+    """
+    with pytest.raises(InvalidInput):
+        rsa_tool.encrypt_rsa("A" * 500, rsa_keys["public_key"])

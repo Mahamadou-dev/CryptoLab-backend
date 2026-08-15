@@ -15,6 +15,7 @@ from fastapi import APIRouter, Body, HTTPException
 
 from db import crud
 from db.models import KeyTextInput, ShiftInput
+from registry.envelope import success
 from utils import aes_simulator, des_simulator, step_visualizer
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ SIMULATORS: dict[str, tuple[type[pydantic.BaseModel], Callable[..., dict], Calla
 
 @router.get("", summary="List the algorithms available for simulation")
 def list_simulations():
-    return {"algorithms": sorted(SIMULATORS)}
+    return success({"algorithms": sorted(SIMULATORS)})
 
 
 @router.post("/{algo}", summary="Get step-by-step simulation for an algorithm")
@@ -107,4 +108,4 @@ def simulate_algorithm(algo: str, data: dict = Body(...)) -> dict[str, Any]:
         ) from exc
 
     crud.record_usage(algo, "simulate", len(parsed.text))
-    return {"algorithm": algo, **result}
+    return success({"algorithm": algo, **result})

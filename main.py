@@ -6,7 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.connection import stats_enabled
-from routers import asymmetric, auth, classical, hash, modern, simulate
+from registry import build_catalog_router, build_routers, registry
+from registry.envelope import install_handlers
+from routers import auth, simulate
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -42,11 +44,21 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-# --- Routeurs ---
-app.include_router(classical.router)
-app.include_router(hash.router)
-app.include_router(modern.router)
-app.include_router(asymmetric.router)
+# --- Enveloppe de reponse ---
+# Branche avant les routeurs : toute sortie de l'API, y compris les erreurs de
+# validation que nous n'ecrivons pas nous-memes, respecte {ok, data, error}.
+install_handlers(app)
+
+# --- Routeurs derives du registre ---
+# Les routes des algorithmes ne sont plus ecrites a la main : elles sont
+# generees depuis registry/catalog/. Ajouter un algorithme = ajouter un fichier.
+for algorithm_router in build_routers(registry):
+    app.include_router(algorithm_router)
+app.include_router(build_catalog_router(registry))
+
+# --- Routeurs ecrits a la main ---
+# La simulation pas a pas et l'authentification ne sont pas des algorithmes du
+# catalogue : elles gardent leurs routeurs propres.
 app.include_router(simulate.router)
 app.include_router(auth.router)
 

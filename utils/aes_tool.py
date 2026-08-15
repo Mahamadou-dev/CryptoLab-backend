@@ -2,6 +2,8 @@
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 
+from registry.errors import DecryptionFailed, InvalidInput
+
 
 def get_aes_key(key_string: str) -> bytes:
     """
@@ -42,8 +44,11 @@ def encrypt_aes_gcm(plain_text: str, key: str) -> dict:
 def decrypt_aes_gcm(cipher_hex: str, key: str, nonce_hex: str, tag_hex: str) -> str:
     """
     Déchiffre le texte AES-GCM.
-    Lève une exception (ValueError) si l'authentification échoue
-    (clé incorrecte ou données corrompues).
+
+    Lève `DecryptionFailed` si la vérification du tag échoue. GCM est un mode
+    *authentifié* : il ne peut structurellement pas distinguer « mauvaise clé »
+    de « données altérées », et c'est une propriété, pas une lacune — le message
+    d'erreur le dit plutôt que de le masquer.
     """
     key_bytes = get_aes_key(key)
 
@@ -52,19 +57,27 @@ def decrypt_aes_gcm(cipher_hex: str, key: str, nonce_hex: str, tag_hex: str) -> 
         cipher_bytes = bytes.fromhex(cipher_hex)
         nonce_bytes = bytes.fromhex(nonce_hex)
         tag_bytes = bytes.fromhex(tag_hex)
+    except ValueError as exc:
+        raise InvalidInput(
+            "Les champs cipher_hex, nonce_hex et tag_hex doivent etre hexadecimaux."
+        ) from exc
 
+    try:
         # Initialiser le cipher avec la clé et le nonce
         cipher = AES.new(key_bytes, AES.MODE_GCM, nonce=nonce_bytes)
 
         # Tenter de déchiffrer ET vérifier le tag d'authentification
-        # C'est ici que la magie opère.
         decrypted_bytes = cipher.decrypt_and_verify(cipher_bytes, tag_bytes)
+    except (ValueError, KeyError) as exc:
+        raise DecryptionFailed(
+            "Echec du dechiffrement : le tag d'authentification ne correspond pas. "
+            "La cle est incorrecte, ou les donnees ont ete modifiees — AES-GCM ne "
+            "permet pas de distinguer les deux."
+        ) from exc
 
+    try:
         return decrypted_bytes.decode('utf-8')
-
-    except (ValueError, KeyError):
-        # ValueError est levé si le tag ne correspond pas
-        # (indique une mauvaise clé ou des données altérées)
-        return "Erreur: Échec du déchiffrement. La clé est-elle correcte ou les données ont-elles été modifiées ?"
-    except Exception as e:
-        return f"Erreur inattendue: {str(e)}"
+    except UnicodeDecodeError as exc:
+        raise DecryptionFailed(
+            "Le dechiffrement a reussi mais le resultat n'est pas du texte UTF-8."
+        ) from exc

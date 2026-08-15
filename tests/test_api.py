@@ -5,6 +5,8 @@ la garantie qu'aucune donnee utilisateur n'est persistee.
 
 import pytest
 
+from tests.conftest import error_of, unwrap
+
 # --- Meta --------------------------------------------------------------------
 
 def test_root_is_alive(client):
@@ -47,7 +49,9 @@ def test_no_user_data_is_ever_persisted(client, monkeypatch):
     assert captured == [
         ("caesar", "encrypt", len(secret)),
         ("sha256", "hash", len(secret)),
-        ("aes-gcm", "encrypt", len(secret)),
+        # Le registre enregistre le slug de l'algorithme ; l'ancien routeur
+        # ecrivait "aes-gcm", qui melangeait l'algorithme et son mode.
+        ("aes", "encrypt", len(secret)),
     ]
     # Aucun element capture ne doit contenir le secret lui-meme.
     assert all(secret not in str(item) for item in captured)
@@ -80,31 +84,31 @@ def test_usage_event_timestamp_is_not_frozen():
 # --- Chiffres classiques -----------------------------------------------------
 
 def test_caesar_endpoint(client):
-    body = client.post("/api/classical/caesar/encrypt", json={"text": "BONJOUR", "shift": 3}).json()
+    body = unwrap(client.post("/api/classical/caesar/encrypt", json={"text": "BONJOUR", "shift": 3}))
     assert body["cipher"] == "ERQMRXU"
 
 
 def test_railfence_endpoint_is_a_real_zigzag(client):
     """Regression : cette route servait une transposition par colonnes."""
-    body = client.post(
+    body = unwrap(client.post(
         "/api/classical/railfence/encrypt", json={"text": "WEAREDISCOVERED", "shift": 3}
-    ).json()
+    ))
     assert body["cipher"] == "WECRERDSOEEAIVD"
 
 
 def test_columnar_endpoint(client):
-    body = client.post(
+    body = unwrap(client.post(
         "/api/classical/columnar/encrypt",
         json={"text": "WEAREDISCOVEREDFLEEATONCE", "key": "ZEBRAS"},
-    ).json()
+    ))
     assert body["cipher"] == "EVLNACDTESEAROFODEECWIREE"
     assert body["key_order"] == [4, 2, 1, 3, 5, 0]
 
 
 def test_playfair_decrypt_strips_padding(client):
-    body = client.post(
+    body = unwrap(client.post(
         "/api/classical/playfair/decrypt", json={"text": "CFSUPMVNMTBZ", "key": "MONARCHY"}
-    ).json()
+    ))
     assert body["plain"] == "HELLOWORLD"
     assert body["plain_raw"] == "HELXLOWORLDX"
 
@@ -120,9 +124,9 @@ def test_playfair_decrypt_strips_padding(client):
     ],
 )
 def test_classical_endpoints_round_trip(client, endpoint, payload):
-    cipher = client.post(endpoint, json=payload).json()["cipher"]
+    cipher = unwrap(client.post(endpoint, json=payload))["cipher"]
     decrypt_payload = {**payload, "text": cipher}
-    plain = client.post(endpoint.replace("encrypt", "decrypt"), json=decrypt_payload).json()["plain"]
+    plain = unwrap(client.post(endpoint.replace("encrypt", "decrypt"), json=decrypt_payload))["plain"]
     assert plain == payload["text"]
 
 
@@ -145,25 +149,25 @@ def test_invalid_input_returns_422(client, endpoint, payload):
 # --- Hachage -----------------------------------------------------------------
 
 def test_sha256_endpoint(client):
-    body = client.post("/api/hash/sha256", json={"text": "abc"}).json()
+    body = unwrap(client.post("/api/hash/sha256", json={"text": "abc"}))
     assert body["hash"] == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 
 
 def test_bcrypt_endpoints(client):
-    hashed = client.post("/api/hash/bcrypt", json={"text": "motdepasse"}).json()["hash"]
-    verified = client.post(
+    hashed = unwrap(client.post("/api/hash/bcrypt", json={"text": "motdepasse"}))["hash"]
+    verified = unwrap(client.post(
         "/api/hash/bcrypt/verify", json={"text": "motdepasse", "hashed_text": hashed}
-    ).json()
+    ))
     assert verified["match"] is True
 
 
 # --- Symetrique moderne ------------------------------------------------------
 
 def test_aes_endpoints_round_trip(client):
-    encrypted = client.post(
+    encrypted = unwrap(client.post(
         "/api/modern/aes/encrypt", json={"text": "Message secret", "key": "ma-cle"}
-    ).json()
-    decrypted = client.post(
+    ))
+    decrypted = unwrap(client.post(
         "/api/modern/aes/decrypt",
         json={
             "cipher_hex": encrypted["cipher_hex"],
@@ -171,49 +175,44 @@ def test_aes_endpoints_round_trip(client):
             "nonce_hex": encrypted["nonce_hex"],
             "tag_hex": encrypted["tag_hex"],
         },
-    ).json()
-    assert decrypted["success"] is True
+    ))
     assert decrypted["plain"] == "Message secret"
 
 
 def test_des_endpoints_round_trip(client):
-    encrypted = client.post(
+    encrypted = unwrap(client.post(
         "/api/modern/des/encrypt", json={"text": "Message secret", "key": "ma-cle"}
-    ).json()
-    decrypted = client.post(
+    ))
+    decrypted = unwrap(client.post(
         "/api/modern/des/decrypt",
         json={
             "cipher_hex": encrypted["cipher_hex"],
             "key": "ma-cle",
             "iv_hex": encrypted["iv_hex"],
         },
-    ).json()
-    assert decrypted["success"] is True
+    ))
     assert decrypted["plain"] == "Message secret"
 
 
 # --- RSA ---------------------------------------------------------------------
 
 def test_rsa_endpoints_round_trip(client):
-    keys = client.get("/api/asymmetric/rsa/generate-keys").json()
-    encrypted = client.post(
+    keys = unwrap(client.get("/api/asymmetric/rsa/generate-keys"))
+    encrypted = unwrap(client.post(
         "/api/asymmetric/rsa/encrypt",
         json={"text": "Message secret", "public_key": keys["public_key"]},
-    ).json()
-    assert encrypted["success"] is True
-
-    decrypted = client.post(
+    ))
+    decrypted = unwrap(client.post(
         "/api/asymmetric/rsa/decrypt",
         json={"cipher_hex": encrypted["cipher_hex"], "private_key": keys["private_key"]},
-    ).json()
-    assert decrypted["success"] is True
+    ))
     assert decrypted["plain"] == "Message secret"
 
 
 # --- Simulations -------------------------------------------------------------
 
 def test_simulate_lists_available_algorithms(client):
-    algorithms = client.get("/api/simulate").json()["algorithms"]
+    algorithms = unwrap(client.get("/api/simulate"))["algorithms"]
     assert algorithms == ["aes", "caesar", "columnar", "des", "playfair", "railfence", "vigenere"]
 
 
@@ -230,7 +229,7 @@ def test_simulate_lists_available_algorithms(client):
     ],
 )
 def test_simulations_return_described_steps(client, algo, payload):
-    body = client.post(f"/api/simulate/{algo}", json=payload).json()
+    body = unwrap(client.post(f"/api/simulate/{algo}", json=payload))
     assert body["algorithm"] == algo
     assert len(body["steps"]) > 1
     assert all(step.get("description") for step in body["steps"])
@@ -240,7 +239,7 @@ def test_simulations_return_described_steps(client, algo, payload):
 def test_unknown_simulation_returns_404(client):
     response = client.post("/api/simulate/enigma", json={"text": "A", "key": "B"})
     assert response.status_code == 404
-    assert "enigma" in response.json()["detail"]
+    assert "enigma" in error_of(response)["message"]
 
 
 def test_simulation_with_bad_input_returns_422(client):
@@ -259,4 +258,4 @@ def test_simulation_never_leaks_internal_errors(client, monkeypatch):
 
     response = client.post("/api/simulate/caesar", json={"text": "ABC", "shift": 3})
     assert response.status_code == 500
-    assert "secret.py" not in response.json()["detail"]
+    assert "secret.py" not in error_of(response)["message"]

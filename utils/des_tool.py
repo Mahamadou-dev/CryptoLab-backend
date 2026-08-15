@@ -2,6 +2,8 @@ from Crypto.Cipher import DES
 from Crypto.Hash import SHA256
 from Crypto.Util.Padding import pad, unpad
 
+from registry.errors import DecryptionFailed, InvalidInput
+
 
 def get_des_key(key_string: str) -> bytes:
     """
@@ -41,26 +43,33 @@ def encrypt_des_cbc(plain_text: str, key: str) -> dict:
 def decrypt_des_cbc(cipher_hex: str, key: str, iv_hex: str) -> str:
     """
     Déchiffre le texte DES-CBC.
+
+    Lève `DecryptionFailed` quand le dépadding échoue. Contrairement à AES-GCM,
+    CBC n'est pas authentifié : c'est le padding PKCS#7 qui trahit l'erreur, et
+    c'est exactement le signal qu'exploite l'attaque par oracle de padding —
+    étudiée en phase 3.
     """
     key_bytes = get_des_key(key)
 
     try:
         cipher_bytes = bytes.fromhex(cipher_hex)
         iv_bytes = bytes.fromhex(iv_hex)
+    except ValueError as exc:
+        raise InvalidInput("Les champs cipher_hex et iv_hex doivent etre hexadecimaux.") from exc
 
+    try:
         cipher = DES.new(key_bytes, DES.MODE_CBC, iv=iv_bytes)
-
-        # Déchiffrer
         decrypted_padded_bytes = cipher.decrypt(cipher_bytes)
-
-        # Enlever le padding
         decrypted_bytes = unpad(decrypted_padded_bytes, DES.block_size)
+    except (ValueError, KeyError) as exc:
+        raise DecryptionFailed(
+            "Echec du dechiffrement : le bourrage PKCS#7 est invalide. "
+            "La cle ou l'IV est incorrect."
+        ) from exc
 
+    try:
         return decrypted_bytes.decode('utf-8')
-
-    except (ValueError, KeyError):
-        # ValueError est levé si le padding est incorrect
-        # (indique une mauvaise clé ou un mauvais IV)
-        return "Erreur: Échec du déchiffrement. Clé ou IV incorrect."
-    except Exception as e:
-        return f"Erreur inattendue: {str(e)}"
+    except UnicodeDecodeError as exc:
+        raise DecryptionFailed(
+            "Le dechiffrement a reussi mais le resultat n'est pas du texte UTF-8."
+        ) from exc
