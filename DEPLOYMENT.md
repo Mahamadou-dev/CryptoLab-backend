@@ -1,5 +1,17 @@
 # Déploiement — backend CryptoLab
 
+## Où vivent les données
+
+**Il n'y a rien à installer sur Render.** Render ne propose pas de MongoDB
+managé — son catalogue de bases couvre PostgreSQL et Key Value/Redis, pas Mongo.
+La base reste donc **MongoDB Atlas**, telle qu'elle est déjà, et Render s'y
+connecte par `MONGO_URI`. Le service Render n'héberge que l'API Python.
+
+```
+Render (web service)  ──MONGO_URI──►  MongoDB Atlas
+   uvicorn main:app                     base cryptolab_auth  (comptes)
+```
+
 ## Le principe
 
 Rien ne part en production sans être passé au vert.
@@ -7,23 +19,85 @@ Rien ne part en production sans être passé au vert.
 ```
 push sur master
    │
-   ├─► CI ──── ruff + 199 tests sur Python 3.10 → 3.13
+   ├─► CI ──── ruff + 267 tests sur Python 3.10 → 3.13
+   │           + 15 vecteurs officiels
    │           + vérification qu'aucun .env ni .idea/ n'est commité
    │
    └─► si et seulement si la CI est verte :
          Deploy ──► hook Render ──► attente ──► test de fumée sur /health
-                                                et sur 7 vecteurs de référence
+                                                et sur les vecteurs de référence
 ```
 
 Le test de fumée rejoue les vecteurs canoniques **sur l'instance déployée**.
 Un déploiement qui casserait AES, Playfair ou SHA-256 est détecté en une minute.
 
-## Mise en place, une seule fois
+> Si le secret `RENDER_DEPLOY_HOOK_URL` n'est pas défini, le workflow `Deploy`
+> ne tombe pas en échec : il s'ignore et explique pourquoi dans son résumé. Un
+> dépôt qui déploie par l'auto-deploy de Render n'a rien à configurer ici.
+
+## Deux façons de déployer — choisir
+
+| | Auto-Deploy Render `On` | Deploy piloté par la CI |
+|---|---|---|
+| Mise en place | rien à faire | un secret GitHub |
+| Déclencheur | chaque push | une CI verte, et elle seule |
+| Un build rouge peut-il partir en prod ? | **oui** | non |
+| Test de fumée après déploiement | non | oui |
+| Workflow `Deploy` | s'ignore | actif |
+
+**Pour une première mise en ligne, `Auto-Deploy On` est le chemin le plus
+court** : aucun secret, le service démarre dès le push. On passe au
+déploiement piloté par la CI quand le site a des utilisateurs et qu'une
+régression coûte quelque chose.
+
+**Ne pas activer les deux.** Auto-Deploy `On` *et* le hook configuré
+déclencheraient deux déploiements concurrents pour un même commit.
+
+## Mise en place — variables d'environnement
+
+> Dashboard Render → votre service → **Environment**
+
+Le fichier `render.yaml` déclare déjà tout ce qui n'est pas secret. Ne restent à
+saisir à la main que les deux valeurs marquées `sync: false` :
+
+| Clé | Valeur | Obligatoire |
+|---|---|---|
+| `CRYPTOLAB_JWT_SECRET` | `python -c "import secrets; print(secrets.token_urlsafe(64))"` | **oui** — l'API refuse de démarrer sans, en production |
+| `MONGO_URI` | l'URI Atlas, avec le mot de passe | **oui** — elle porte la base des comptes |
+
+Les autres viennent du Blueprint : `PYTHON_VERSION=3.12`,
+`CRYPTOLAB_ENV=production`, `CRYPTOLAB_AUTH_DB=cryptolab_auth`,
+`CRYPTOLAB_ENABLE_STATS=false`, `CRYPTOLAB_ALLOWED_ORIGINS`.
+
+> **`MONGO_URI` est requis en production.** Une version antérieure de ce
+> document le disait facultatif : c'était vrai quand Mongo ne servait qu'aux
+> statistiques, et faux depuis que la base porte les comptes utilisateurs. Sans
+> lui, `CRYPTOLAB_ENV=production` fait échouer le démarrage — délibérément :
+> mieux vaut un refus net que des inscriptions écrites en mémoire et perdues au
+> premier redémarrage.
+
+### Côté MongoDB Atlas
+
+1. **Faire tourner le mot de passe** : l'ancienne URI a vécu dans un dépôt sans
+   `.gitignore`. Considérez-la comme exposée.
+2. Créer un utilisateur dédié, avec accès à la seule base `cryptolab_auth`.
+3. **Network Access** → autoriser `0.0.0.0/0`. Les adresses sortantes de Render
+   ne sont pas fixes sur le plan gratuit ; sans cette règle, la connexion échoue
+   à l'exécution alors que tout paraît correct.
+
+### Vérifier que la base est bien branchée
+
+```bash
+curl https://<votre-service>.onrender.com/health
+```
+
+`accounts_backend` doit valoir `"mongodb"`. S'il vaut `"memory"`, les
+inscriptions disparaîtront au prochain redémarrage — la connexion Atlas a
+échoué.
+
+## Si vous choisissez le déploiement piloté par la CI
 
 ### 1. Couper l'auto-déploiement de Render
-
-Sans cela, Render déploie dès le push, sans attendre la CI — c'est exactement
-ce qu'on cherche à éviter.
 
 > Dashboard Render → votre service → **Settings** → **Auto-Deploy** → `Off`
 
@@ -40,26 +114,12 @@ ce qu'on cherche à éviter.
 |---|---|
 | `RENDER_DEPLOY_HOOK_URL` | l'URL copiée à l'étape 2 |
 
-Et, dans l'onglet **Variables** (facultatif, si votre URL diffère) :
+Et, dans l'onglet **Variables** (nécessaire si votre URL diffère de la valeur
+par défaut) :
 
 | Nom | Valeur |
 |---|---|
-| `API_URL` | `https://cryptolab-api.onrender.com` |
-
-### 4. Variables d'environnement côté Render
-
-> Dashboard Render → votre service → **Environment**
-
-| Clé | Valeur | Note |
-|---|---|---|
-| `PYTHON_VERSION` | `3.12` | |
-| `CRYPTOLAB_ENABLE_STATS` | `false` | aucune donnée utilisateur enregistrée |
-| `CRYPTOLAB_ALLOWED_ORIGINS` | `https://cryptolaboratory.vercel.app` | origines CORS, séparées par des virgules |
-| `MONGO_URI` | *(optionnel)* | requis seulement si les stats sont activées |
-
-> **À faire maintenant** : l'ancienne URI Mongo a vécu dans un dépôt sans
-> `.gitignore`. Considérez-la comme exposée et **faites-la tourner** dans
-> MongoDB Atlas avant toute remise en service.
+| `API_URL` | `https://<votre-service>.onrender.com` |
 
 ## Déclencher un déploiement à la main
 

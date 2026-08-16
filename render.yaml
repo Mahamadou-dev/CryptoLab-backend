@@ -1,9 +1,19 @@
 # Blueprint Render — infrastructure du backend CryptoLab en tant que code.
 #
-# IMPORTANT : dans le dashboard Render, mettre "Auto-Deploy" sur **Off**.
-# Le deploiement est declenche par .github/workflows/deploy.yml, et seulement
-# apres que la CI (lint + 199 tests) soit passee au vert. Sans cela, un commit
-# rouge partirait en production.
+# Render n'heberge que l'API Python. Il n'y a pas de base a creer ici : Render
+# ne propose pas de MongoDB manage, et les comptes vivent dans MongoDB Atlas,
+# joint par MONGO_URI.
+#
+# `autoDeploy: false` : le deploiement est declenche par
+# .github/workflows/deploy.yml, et seulement apres que la CI soit passee au
+# vert. Sans cela, un commit rouge partirait en production.
+#
+# Pour une premiere mise en ligne, on peut preferer l'auto-deploy de Render :
+# passer "Auto-Deploy" sur On dans le dashboard, et ne pas definir le secret
+# RENDER_DEPLOY_HOOK_URL — le workflow Deploy s'ignorera alors proprement.
+# Attention : une resynchronisation du Blueprint reappliquerait `false`.
+# Ne jamais activer les deux, ce serait deux deploiements concurrents.
+# Voir DEPLOYMENT.md.
 
 services:
   - type: web
