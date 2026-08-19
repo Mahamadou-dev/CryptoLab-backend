@@ -78,7 +78,21 @@ def call(base_url: str, method: str, path: str, body: dict | None) -> dict:
         headers={"Content-Type": "application/json"} if data else {},
     )
     with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-        return json.loads(response.read())
+        return unwrap(json.loads(response.read()))
+
+
+def unwrap(payload: dict) -> dict:
+    """
+    Retire l'enveloppe `{ok, data, error}` introduite par le registre.
+
+    Les routes d'algorithmes repondent desormais sous enveloppe, `/health` et
+    `/api/auth/*` non — ces dernieres gardent le contrat historique de FastAPI.
+    On accepte donc les deux formes plutot que d'imposer un cas particulier a
+    chaque verification.
+    """
+    if isinstance(payload, dict) and "ok" in payload and "data" in payload:
+        return payload["data"] or {}
+    return payload
 
 
 def wait_until_awake(base_url: str, attempts: int = 20, delay: int = 15) -> None:
