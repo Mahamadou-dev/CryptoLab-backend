@@ -7,7 +7,7 @@ essentielles, et surtout que les vecteurs de reference y sont toujours justes.
 Un deploiement qui casse la crypto doit etre visible immediatement.
 
 Usage :
-    python scripts/smoke_test.py https://cryptolab-api.onrender.com
+    python scripts/smoke_test.py https://cryptolab-backend.onrender.com
 """
 
 import json

@@ -30,7 +30,7 @@ jobs:
 
     environment:
       name: production
-      url: ${{ vars.API_URL || 'https://cryptolab-api.onrender.com' }}
+      url: ${{ vars.API_URL || 'https://cryptolab-backend.onrender.com' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +67,7 @@ jobs:
 
       - name: Test de fumee sur la production
         if: steps.check.outputs.configured == 'true'
-        run: python scripts/smoke_test.py "${{ vars.API_URL || 'https://cryptolab-api.onrender.com' }}"
+        run: python scripts/smoke_test.py "${{ vars.API_URL || 'https://cryptolab-backend.onrender.com' }}"
 
       - name: Resume
         if: always()
@@ -93,7 +93,7 @@ jobs:
               echo "### Deploiement backend"
               echo ""
               echo "- Commit : \`${{ github.sha }}\`"
-              echo "- Cible : ${{ vars.API_URL || 'https://cryptolab-api.onrender.com' }}"
+              echo "- Cible : ${{ vars.API_URL || 'https://cryptolab-backend.onrender.com' }}"
               echo "- Resultat : ${{ job.status }}"
             } >> "$GITHUB_STEP_SUMMARY"
           fi

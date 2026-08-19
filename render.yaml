@@ -17,7 +17,7 @@
 
 services:
   - type: web
-    name: cryptolab-api
+    name: cryptolab-backend
     runtime: python
     plan: free
     region: frankfurt

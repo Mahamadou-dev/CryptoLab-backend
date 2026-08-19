@@ -128,7 +128,7 @@ par défaut) :
 ## Vérifier une instance sans passer par la CI
 
 ```bash
-python scripts/smoke_test.py https://cryptolab-api.onrender.com
+python scripts/smoke_test.py https://cryptolab-backend.onrender.com
 ```
 
 Le script patiente pendant le réveil de l'instance : sur le plan gratuit de
