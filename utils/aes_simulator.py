@@ -1,12 +1,20 @@
 
 from . import aes_constants as const
-from .aes_math import gadd, mix_single_column
+from .aes_math import gadd, gmul, mix_single_column
 
 # --- Types de données ---
 # Un "mot" (word) est une liste de 4 bytes [b0, b1, b2, b3]
 Word = list[int]
 # Un "état" (state) est une matrice 4x4 de bytes
 State = list[list[int]]
+
+# S-Box inverse, calculee une seule fois a l'import a partir de la S-Box
+# directe (const.S_BOX[row][col] = value  =>  INV_S_BOX[value] = row*16+col).
+INV_S_BOX = [0] * 256
+for _row in range(16):
+    for _col in range(16):
+        INV_S_BOX[const.S_BOX[_row][_col]] = (_row << 4) | _col
+del _row, _col
 
 
 # --- Helpers de formatage ---
@@ -299,3 +307,300 @@ def simulate_aes_encrypt(plain_text_str: str, key_str: str) -> dict:
     })
 
     return {"final_result_hex": final_hex, "steps": steps}
+
+
+# --- Bourrage PKCS#7 (RFC 5652 §6.3) -----------------------------------------
+# Necessaire pour chiffrer un message de longueur quelconque en plusieurs
+# blocs de 16 octets : le dernier bloc est complete par des octets dont la
+# valeur est elle-meme la quantite de bourrage ajoutee (ex: message qui tombe
+# juste sur un multiple de 16 -> un bloc ENTIER de 0x10 est ajoute, jamais
+# zero bourrage, sinon le dechiffrement ne pourrait pas distinguer bourrage et
+# absence de bourrage).
+
+def pkcs7_pad(data: bytes, block_size: int = 16) -> bytes:
+    pad_len = block_size - (len(data) % block_size)
+    return data + bytes([pad_len]) * pad_len
+
+
+def pkcs7_unpad(data: bytes, block_size: int = 16) -> bytes:
+    if not data or len(data) % block_size != 0:
+        raise ValueError("Longueur invalide pour un dépadding PKCS#7.")
+    pad_len = data[-1]
+    if pad_len == 0 or pad_len > block_size or data[-pad_len:] != bytes([pad_len]) * pad_len:
+        raise ValueError("Bourrage PKCS#7 invalide.")
+    return data[:-pad_len]
+
+
+# --- Transformations inverses (déchiffrement) --------------------------------
+
+def inv_sub_bytes(state: State, trace_list: list[str]) -> State:
+    """InvSubBytes : S-Box inverse sur chaque byte."""
+    new_state = [[0] * 4 for _ in range(4)]
+    desc = "Application de InvSubBytes (S-Box inverse) sur chaque byte :"
+    for r in range(4):
+        row_in, row_out = "  IN: [", " OUT: ["
+        for c in range(4):
+            byte = state[r][c]
+            new_byte = INV_S_BOX[byte]
+            new_state[r][c] = new_byte
+            row_in += f"{byte:02x} "
+            row_out += f"{new_byte:02x} "
+        desc += f"\n{row_in.strip()}] -> {row_out.strip()}]"
+    trace_list.append(desc)
+    return new_state
+
+
+def inv_shift_rows(state: State, trace_list: list[str]) -> State:
+    """InvShiftRows : décalage des lignes vers la droite (inverse de ShiftRows)."""
+    new_state = [row[:] for row in state]
+    desc = "Application de InvShiftRows :"
+    desc += f"\n  Ligne 0 (pas de décalage): {new_state[0]}"
+    new_state[1] = state[1][-1:] + state[1][:-1]
+    desc += f"\n  Ligne 1 (décalage de 1 à droite): {new_state[1]}"
+    new_state[2] = state[2][-2:] + state[2][:-2]
+    desc += f"\n  Ligne 2 (décalage de 2 à droite): {new_state[2]}"
+    new_state[3] = state[3][-3:] + state[3][:-3]
+    desc += f"\n  Ligne 3 (décalage de 3 à droite): {new_state[3]}"
+    trace_list.append(desc)
+    return new_state
+
+
+def inv_mix_single_column(column: list[int]) -> list[int]:
+    """Multiplication par la matrice inverse de MixColumns (coefficients 0x0e,0x0b,0x0d,0x09)."""
+    matrix = [
+        [0x0E, 0x0B, 0x0D, 0x09],
+        [0x09, 0x0E, 0x0B, 0x0D],
+        [0x0D, 0x09, 0x0E, 0x0B],
+        [0x0B, 0x0D, 0x09, 0x0E],
+    ]
+    new_col = [0] * 4
+    for r in range(4):
+        value = 0
+        for c in range(4):
+            value = gadd(value, gmul(matrix[r][c], column[c]))
+        new_col[r] = value
+    return new_col
+
+
+def inv_mix_columns(state: State, trace_list: list[str]) -> State:
+    """InvMixColumns : inverse de MixColumns, colonne par colonne."""
+    new_state = [[0] * 4 for _ in range(4)]
+    desc = "Application de InvMixColumns (matrice inverse GF(2^8) par colonne) :"
+    for c in range(4):
+        col_in = [state[r][c] for r in range(4)]
+        col_out = inv_mix_single_column(col_in)
+        desc += f"\n  Colonne {c}: {col_in} -> {col_out}"
+        for r in range(4):
+            new_state[r][c] = col_out[r]
+    trace_list.append(desc)
+    return new_state
+
+
+# --- Simulateur par bloc brut (16 octets exacts, sans troncature ni bourrage
+# implicite) : c'est le brique reutilisee par les fonctions multi-blocs. Le
+# comportement de `simulate_aes_encrypt`/`text_to_state` ci-dessus (troncature
+# silencieuse a 16 caracteres) reste inchange pour ne pas casser les tests
+# existants ni le vecteur pedagogique historique.
+
+def _bytes_to_state(data: bytes) -> State:
+    state = [[0] * 4 for _ in range(4)]
+    for c in range(4):
+        for r in range(4):
+            state[r][c] = data[c * 4 + r]
+    return state
+
+
+def _state_to_bytes(state: State) -> bytes:
+    return bytes(state[r][c] for c in range(4) for r in range(4))
+
+
+def encrypt_block(block: bytes, key_words: list[Word]) -> tuple[bytes, list[dict]]:
+    """Chiffre un unique bloc de 16 octets, en tracant chaque round (AES-128)."""
+    if len(block) != 16:
+        raise ValueError("Un bloc AES fait exactement 16 octets.")
+
+    steps = []
+    round_keys, key_schedule_trace = expand_key(key_words)
+    steps.extend(key_schedule_trace)
+
+    state = _bytes_to_state(block)
+    round_trace = []
+    state = add_round_key(state, round_keys[0], round_trace)
+    steps.append({"phase": "Chiffrement", "round": 0,
+                  "description": "Round 0 (Pré-calcul):\n" + "\n".join(round_trace),
+                  "state_hex": state_to_str(state)})
+
+    for r in range(1, 10):
+        round_trace = []
+        state = sub_bytes(state, round_trace)
+        state = shift_rows(state, round_trace)
+        state = mix_columns(state, round_trace)
+        state = add_round_key(state, round_keys[r], round_trace)
+        steps.append({"phase": "Chiffrement", "round": r,
+                      "description": f"--- Round {r} ---\n" + "\n\n".join(round_trace),
+                      "state_hex": state_to_str(state)})
+
+    round_trace = []
+    state = sub_bytes(state, round_trace)
+    state = shift_rows(state, round_trace)
+    round_trace.append("MixColumns: [OMIS (Round Final)]")
+    state = add_round_key(state, round_keys[10], round_trace)
+    steps.append({"phase": "Chiffrement", "round": 10,
+                  "description": "--- Round 10 (Final) ---\n" + "\n\n".join(round_trace),
+                  "state_hex": state_to_str(state)})
+
+    return _state_to_bytes(state), steps
+
+
+def decrypt_block(block: bytes, key_words: list[Word]) -> tuple[bytes, list[dict]]:
+    """
+    Déchiffre un unique bloc de 16 octets : rounds appliqués dans l'ordre
+    inverse (10 -> 0), chaque transformation remplacée par son inverse.
+    """
+    if len(block) != 16:
+        raise ValueError("Un bloc AES fait exactement 16 octets.")
+
+    steps = []
+    round_keys, key_schedule_trace = expand_key(key_words)
+    steps.extend(key_schedule_trace)
+
+    state = _bytes_to_state(block)
+
+    round_trace = []
+    state = add_round_key(state, round_keys[10], round_trace)
+    round_trace.append("InvMixColumns: [OMIS (dernier round de chiffrement)]")
+    state = inv_shift_rows(state, round_trace)
+    state = inv_sub_bytes(state, round_trace)
+    steps.append({"phase": "Déchiffrement", "round": 10,
+                  "description": "--- Round 10 (inverse) ---\n" + "\n\n".join(round_trace),
+                  "state_hex": state_to_str(state)})
+
+    for r in range(9, 0, -1):
+        round_trace = []
+        state = add_round_key(state, round_keys[r], round_trace)
+        state = inv_mix_columns(state, round_trace)
+        state = inv_shift_rows(state, round_trace)
+        state = inv_sub_bytes(state, round_trace)
+        steps.append({"phase": "Déchiffrement", "round": r,
+                      "description": f"--- Round {r} (inverse) ---\n" + "\n\n".join(round_trace),
+                      "state_hex": state_to_str(state)})
+
+    round_trace = []
+    state = add_round_key(state, round_keys[0], round_trace)
+    steps.append({"phase": "Déchiffrement", "round": 0,
+                  "description": "Round 0 (final, inverse) :\n" + "\n".join(round_trace),
+                  "state_hex": state_to_str(state)})
+
+    return _state_to_bytes(state), steps
+
+
+# --- Simulation multi-blocs (chiffrement et déchiffrement pas à pas) ---------
+# L'ancien simulateur ne traitait qu'un seul bloc de 16 caractères, tronquait
+# silencieusement au-delà, et ne simulait que le chiffrement. Ici : bourrage
+# PKCS#7 explicite et tracé, découpage en N blocs, et le déchiffrement complet
+# (rounds inverses) est simulé lui aussi. Les blocs sont chaînés en ECB (le
+# chaînage CBC/CTR est la responsabilité de `modes_tool`, qui montre
+# précisément pourquoi ECB seul est un mauvais choix).
+
+def simulate_aes_encrypt_multiblock(plain_text: str, key_str: str) -> dict:
+    key_words, key_prep_trace = key_to_words(key_str)
+    plain_bytes = plain_text.encode("utf-8")
+    padded = pkcs7_pad(plain_bytes, 16)
+    blocks = [padded[i:i + 16] for i in range(0, len(padded), 16)]
+
+    steps = [{
+        "step": 0,
+        "phase": "Bourrage PKCS#7",
+        "description": (
+            f"Texte : '{plain_text}' ({len(plain_bytes)} octets).\n"
+            f"Bourrage PKCS#7 jusqu'à un multiple de 16 octets : "
+            f"{len(padded)} octets ajoutés = {padded[-1]}.\n"
+            f"Découpage en {len(blocks)} bloc(s) de 16 octets."
+        ),
+        "block_count": len(blocks),
+    }, {"step": 1, "phase": "Préparation de la clé", "description": key_prep_trace}]
+
+    block_results = []
+    cipher_bytes = b""
+    for index, block in enumerate(blocks):
+        cipher_block, block_steps = encrypt_block(block, key_words)
+        cipher_bytes += cipher_block
+        for s in block_steps:
+            s["block"] = index
+        steps.append({
+            "step": len(steps),
+            "phase": "Bloc",
+            "block": index,
+            "description": f"--- Bloc {index} ({block.hex()}) ---",
+            "block_steps": block_steps,
+            "block_result_hex": cipher_block.hex(),
+        })
+        block_results.append(cipher_block.hex())
+
+    steps.append({
+        "step": len(steps),
+        "phase": "Final",
+        "description": f"Fin du chiffrement. Résultat ({len(blocks)} bloc(s)) : {cipher_bytes.hex()}",
+        "final_result_hex": cipher_bytes.hex(),
+    })
+
+    return {
+        "final_result_hex": cipher_bytes.hex(),
+        "block_count": len(blocks),
+        "block_results": block_results,
+        "steps": steps,
+    }
+
+
+def simulate_aes_decrypt_multiblock(cipher_hex: str, key_str: str) -> dict:
+    key_words, key_prep_trace = key_to_words(key_str)
+    cipher_bytes = bytes.fromhex(cipher_hex)
+    if len(cipher_bytes) % 16 != 0:
+        raise ValueError("Le chiffré doit être un multiple de 16 octets.")
+    blocks = [cipher_bytes[i:i + 16] for i in range(0, len(cipher_bytes), 16)]
+
+    steps = [{"step": 0, "phase": "Préparation de la clé", "description": key_prep_trace}]
+
+    plain_padded = b""
+    for index, block in enumerate(blocks):
+        plain_block, block_steps = decrypt_block(block, key_words)
+        plain_padded += plain_block
+        for s in block_steps:
+            s["block"] = index
+        steps.append({
+            "step": len(steps),
+            "phase": "Bloc",
+            "block": index,
+            "description": f"--- Bloc {index} ({block.hex()}) ---",
+            "block_steps": block_steps,
+            "block_result_hex": plain_block.hex(),
+        })
+
+    try:
+        plain_bytes = pkcs7_unpad(plain_padded, 16)
+    except ValueError as exc:
+        raise ValueError(
+            "Bourrage PKCS#7 invalide au déchiffrement : clé incorrecte, ou "
+            "données altérées."
+        ) from exc
+
+    try:
+        plain_text = plain_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("Le résultat déchiffré n'est pas du texte UTF-8 valide.") from exc
+
+    steps.append({
+        "step": len(steps),
+        "phase": "Dépadding",
+        "description": (
+            f"Retrait du bourrage PKCS#7 ({len(plain_padded) - len(plain_bytes)} "
+            f"octets retirés).\nRésultat : '{plain_text}'."
+        ),
+        "final_result": plain_text,
+    })
+
+    return {
+        "final_result": plain_text,
+        "block_count": len(blocks),
+        "steps": steps,
+    }

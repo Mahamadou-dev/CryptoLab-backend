@@ -14,7 +14,13 @@ import pydantic
 from fastapi import APIRouter, Body, HTTPException
 
 from db import crud
-from db.models import KeyTextInput, ShiftInput, TextInput
+from db.models import (
+    AesDecryptSimInput,
+    DesDecryptSimInput,
+    KeyTextInput,
+    ShiftInput,
+    TextInput,
+)
 from registry.envelope import success
 from utils import aes_simulator, des_simulator, step_visualizer
 
@@ -59,6 +65,26 @@ SIMULATORS: dict[str, tuple[type[pydantic.BaseModel], Callable[..., dict], Calla
         KeyTextInput,
         aes_simulator.simulate_aes_encrypt,
         lambda d: (d.text, d.key),
+    ),
+    "aes-multiblock": (
+        KeyTextInput,
+        aes_simulator.simulate_aes_encrypt_multiblock,
+        lambda d: (d.text, d.key),
+    ),
+    "aes-decrypt": (
+        AesDecryptSimInput,
+        aes_simulator.simulate_aes_decrypt_multiblock,
+        lambda d: (d.cipher_hex, d.key),
+    ),
+    "des-multiblock": (
+        KeyTextInput,
+        des_simulator.simulate_des_encrypt_multiblock,
+        lambda d: (d.text, d.key),
+    ),
+    "des-decrypt": (
+        DesDecryptSimInput,
+        des_simulator.simulate_des_decrypt_multiblock,
+        lambda d: (d.cipher_hex, d.key),
     ),
     "sha256": (
         TextInput,
@@ -117,5 +143,6 @@ def simulate_algorithm(algo: str, data: dict = Body(...)) -> dict[str, Any]:
             detail=f"Erreur interne pendant la simulation de '{algo}'.",
         ) from exc
 
-    crud.record_usage(algo, "simulate", len(parsed.text))
+    input_length = len(getattr(parsed, "text", None) or getattr(parsed, "cipher_hex", ""))
+    crud.record_usage(algo, "simulate", input_length)
     return success({"algorithm": algo, **result})

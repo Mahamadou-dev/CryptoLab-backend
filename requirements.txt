@@ -7,6 +7,9 @@ python-dotenv>=1.0,<2.0
 # --- Cryptographie ---
 pycryptodome>=3.21,<4.0
 bcrypt>=4.2,<5.0
+# ChaCha20-Poly1305 (RFC 8439) : pyca/cryptography l'expose directement, sans
+# reimplementation pedagogique (chiffrement de flot moderne, standard TLS 1.3).
+cryptography>=43,<46
 
 # --- Authentification ---
 # PyJWT signe et verifie les jetons de session ; email-validator est requis par

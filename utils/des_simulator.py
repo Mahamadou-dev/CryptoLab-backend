@@ -257,3 +257,197 @@ def simulate_des_encrypt(plain_text_str: str, key_str: str) -> dict:
         "steps": steps,
         "s_box_traces": s_box_traces
     }
+
+
+# --- Bourrage PKCS#7 (bloc de 8 octets) --------------------------------------
+
+def pkcs7_pad(data: bytes, block_size: int = 8) -> bytes:
+    pad_len = block_size - (len(data) % block_size)
+    return data + bytes([pad_len]) * pad_len
+
+
+def pkcs7_unpad(data: bytes, block_size: int = 8) -> bytes:
+    if not data or len(data) % block_size != 0:
+        raise ValueError("Longueur invalide pour un dépadding PKCS#7.")
+    pad_len = data[-1]
+    if pad_len == 0 or pad_len > block_size or data[-pad_len:] != bytes([pad_len]) * pad_len:
+        raise ValueError("Bourrage PKCS#7 invalide.")
+    return data[:-pad_len]
+
+
+# --- Chiffrement / déchiffrement d'un bloc brut de 8 octets ------------------
+# Le réseau de Feistel de DES est sa propre inverse : dérouler les 16 rounds
+# avec les clés dans l'ordre inverse (K16..K1) déchiffre exactement ce que
+# l'ordre K1..K16 a chiffré. C'est la propriété centrale que cette fonction
+# rend visible : chiffrer et déchiffrer, c'est le même circuit.
+
+def _feistel_rounds(bits_64: str, round_keys: list[str], *, reverse: bool) -> tuple[str, list[dict], list[dict]]:
+    steps = []
+    s_box_traces = []
+
+    ip_bits = permute(bits_64, const.IP)
+    steps.append({"phase": "Permutation Initiale (IP)",
+                  "description": f"{bits_64} -> {ip_bits}"})
+
+    L, R = ip_bits[:32], ip_bits[32:]
+    keys_in_order = list(reversed(round_keys)) if reverse else round_keys
+
+    for i in range(16):
+        round_num = i + 1
+        L_prev, R_prev = L, R
+        L = R_prev
+        K_i = keys_in_order[i]
+
+        s_box_trace_for_round = []
+        f_output, f_step_desc = f_function(R_prev, K_i, s_box_trace_for_round)
+        R = xor(L_prev, f_output)
+
+        s_box_traces.append({"round": round_num, "trace": s_box_trace_for_round[0]})
+        steps.append({
+            "phase": "Déchiffrement" if reverse else "Chiffrement",
+            "round": round_num,
+            "description": f"Round {round_num} : {f_step_desc}",
+        })
+
+    final_block = R + L
+    cipher_bits = permute(final_block, const.IP_1)
+    steps.append({"phase": "Permutation Finale (IP-1)",
+                  "description": f"{final_block} -> {cipher_bits}"})
+    return cipher_bits, steps, s_box_traces
+
+
+def encrypt_block_bits(bits_64: str, round_keys: list[str]) -> tuple[str, list[dict]]:
+    result, steps, _ = _feistel_rounds(bits_64, round_keys, reverse=False)
+    return result, steps
+
+
+def decrypt_block_bits(bits_64: str, round_keys: list[str]) -> tuple[str, list[dict]]:
+    """
+    Déchiffre un bloc de 64 bits : mêmes 16 rounds de Feistel, mais les clés
+    de round sont appliquées dans l'ordre inverse (K16 en premier).
+    """
+    result, steps, _ = _feistel_rounds(bits_64, round_keys, reverse=True)
+    return result, steps
+
+
+# --- Simulation multi-blocs ---------------------------------------------------
+# L'ancien simulateur ne traitait qu'un bloc de 8 caractères, tronquait
+# silencieusement au-delà, et ne simulait que le chiffrement. Ici : bourrage
+# PKCS#7 tracé, découpage en N blocs de 8 octets, chiffrement ET déchiffrement
+# pas à pas (blocs chaînés en ECB — CBC/CTR sont couverts par `modes_tool`).
+
+def simulate_des_encrypt_multiblock(plain_text: str, key_str: str) -> dict:
+    key = key_str if len(key_str) <= 8 else key_str[:8]
+    key = key.ljust(8, " ")
+    key_bits_64 = key_to_bits(key)
+    round_keys, key_steps = generate_round_keys(key_bits_64)
+
+    plain_bytes = plain_text.encode("utf-8")
+    padded = pkcs7_pad(plain_bytes, 8)
+    blocks = [padded[i:i + 8] for i in range(0, len(padded), 8)]
+
+    steps = [{
+        "step": 0,
+        "phase": "Bourrage PKCS#7",
+        "description": (
+            f"Texte : '{plain_text}' ({len(plain_bytes)} octets).\n"
+            f"Bourrage PKCS#7 jusqu'à un multiple de 8 octets : "
+            f"{padded[-1]} octet(s) ajouté(s).\n"
+            f"Découpage en {len(blocks)} bloc(s) de 8 octets."
+        ),
+        "block_count": len(blocks),
+    }]
+    steps.extend(key_steps)
+
+    cipher_bytes = b""
+    block_results = []
+    for index, block in enumerate(blocks):
+        block_bits = "".join(format(byte, "08b") for byte in block)
+        cipher_bits, block_steps = encrypt_block_bits(block_bits, round_keys)
+        cipher_block = bytes(int(cipher_bits[i:i + 8], 2) for i in range(0, 64, 8))
+        cipher_bytes += cipher_block
+        for s in block_steps:
+            s["block"] = index
+        steps.append({
+            "step": len(steps),
+            "phase": "Bloc",
+            "block": index,
+            "description": f"--- Bloc {index} ({block.hex()}) ---",
+            "block_steps": block_steps,
+            "block_result_hex": cipher_block.hex().upper(),
+        })
+        block_results.append(cipher_block.hex().upper())
+
+    final_hex = cipher_bytes.hex().upper()
+    steps.append({
+        "step": len(steps),
+        "phase": "Final",
+        "description": f"Fin du chiffrement. Résultat ({len(blocks)} bloc(s)) : {final_hex}",
+        "final_result_hex": final_hex,
+    })
+
+    return {
+        "final_result_hex": final_hex,
+        "block_count": len(blocks),
+        "block_results": block_results,
+        "steps": steps,
+    }
+
+
+def simulate_des_decrypt_multiblock(cipher_hex: str, key_str: str) -> dict:
+    key = key_str if len(key_str) <= 8 else key_str[:8]
+    key = key.ljust(8, " ")
+    key_bits_64 = key_to_bits(key)
+    round_keys, key_steps = generate_round_keys(key_bits_64)
+
+    cipher_bytes = bytes.fromhex(cipher_hex)
+    if len(cipher_bytes) % 8 != 0:
+        raise ValueError("Le chiffré doit être un multiple de 8 octets.")
+    blocks = [cipher_bytes[i:i + 8] for i in range(0, len(cipher_bytes), 8)]
+
+    steps = list(key_steps)
+    plain_padded = b""
+    for index, block in enumerate(blocks):
+        block_bits = "".join(format(byte, "08b") for byte in block)
+        plain_bits, block_steps = decrypt_block_bits(block_bits, round_keys)
+        plain_block = bytes(int(plain_bits[i:i + 8], 2) for i in range(0, 64, 8))
+        plain_padded += plain_block
+        for s in block_steps:
+            s["block"] = index
+        steps.append({
+            "step": len(steps),
+            "phase": "Bloc",
+            "block": index,
+            "description": f"--- Bloc {index} ({block.hex()}) ---",
+            "block_steps": block_steps,
+            "block_result_hex": plain_block.hex().upper(),
+        })
+
+    try:
+        plain_bytes = pkcs7_unpad(plain_padded, 8)
+    except ValueError as exc:
+        raise ValueError(
+            "Bourrage PKCS#7 invalide au déchiffrement : clé incorrecte, ou "
+            "données altérées."
+        ) from exc
+
+    try:
+        plain_text = plain_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("Le résultat déchiffré n'est pas du texte UTF-8 valide.") from exc
+
+    steps.append({
+        "step": len(steps),
+        "phase": "Dépadding",
+        "description": (
+            f"Retrait du bourrage PKCS#7 ({len(plain_padded) - len(plain_bytes)} "
+            f"octets retirés).\nRésultat : '{plain_text}'."
+        ),
+        "final_result": plain_text,
+    })
+
+    return {
+        "final_result": plain_text,
+        "block_count": len(blocks),
+        "steps": steps,
+    }

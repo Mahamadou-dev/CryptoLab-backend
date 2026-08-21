@@ -140,3 +140,89 @@ class RsaDecryptInput(BaseModel):
 # Alias historiques (AesInput/DesInput etaient des doublons de KeyTextInput).
 AesInput = KeyTextInput
 DesInput = KeyTextInput
+
+
+class AesVariantDecryptInput(BaseModel):
+    """Dechiffrement AES-GCM pour les variantes 128/192 bits (`AesDecryptInput` sert le 256 bits historique)."""
+
+    cipher_hex: str = Field(..., max_length=MAX_HEX)
+    key: str = Field(..., min_length=1, max_length=MAX_KEY)
+    nonce_hex: str = Field(..., max_length=64)
+    tag_hex: str = Field(..., max_length=64)
+    salt_hex: str = Field(..., max_length=64)
+
+
+class ChaCha20Input(BaseModel):
+    """Chiffrement ChaCha20-Poly1305 (RFC 8439)."""
+
+    text: str = Field(..., max_length=MAX_TEXT)
+    key: str = Field(..., min_length=1, max_length=MAX_KEY)
+
+
+class ChaCha20DecryptInput(BaseModel):
+    """Dechiffrement ChaCha20-Poly1305."""
+
+    cipher_hex: str = Field(..., max_length=MAX_HEX)
+    key: str = Field(..., min_length=1, max_length=MAX_KEY)
+    nonce_hex: str = Field(..., max_length=32)
+    salt_hex: str = Field(..., max_length=64)
+
+
+class ModesEncryptInput(BaseModel):
+    """
+    Chiffrement pedagogique par bloc, cle et IV/nonce fournis en clair (hex).
+
+    Couche pedagogique, pas production : la cle et l'IV sont explicites pour
+    pouvoir rejouer des vecteurs NIST SP 800-38A/38D deterministes et illustrer
+    la difference entre modes (le "pingouin ECB"). En production (`aes_tool`,
+    `des_tool`), l'IV/le nonce sont toujours tires au hasard par le cipher.
+    """
+
+    key_hex: str = Field(..., max_length=64)
+    plaintext_hex: str = Field(..., max_length=MAX_HEX)
+    iv_hex: str = Field(default="", max_length=32)
+
+
+class EcbPenguinInput(BaseModel):
+    """Repete un bloc de 16 octets et compare la sortie ECB/CBC/CTR pour le meme motif."""
+
+    key_hex: str = Field(..., max_length=64)
+    block_hex: str = Field(..., max_length=32, min_length=32)
+    repeats: int = Field(default=4, ge=2, le=32)
+
+
+class Rc4Input(BaseModel):
+    """RC4 (chiffrement de flot). Le meme code chiffre et dechiffre : XOR involutif."""
+
+    text: str = Field(..., max_length=MAX_TEXT)
+    key: str = Field(..., min_length=1, max_length=MAX_KEY)
+
+
+class Rc4HexInput(BaseModel):
+    """RC4 sur une entree hexadecimale, pour rejouer les vecteurs RFC 6229 (flux non-UTF-8)."""
+
+    plaintext_hex: str = Field(..., max_length=MAX_HEX)
+    key_hex: str = Field(..., max_length=MAX_KEY)
+
+
+class AesDecryptSimInput(BaseModel):
+    """Dechiffrement pas a pas AES (simulateur pedagogique, cle en clair, pas de GCM)."""
+
+    cipher_hex: str = Field(..., max_length=MAX_HEX)
+    key: str = Field(..., min_length=1, max_length=MAX_KEY)
+
+
+class DesDecryptSimInput(BaseModel):
+    """Dechiffrement pas a pas DES (simulateur pedagogique)."""
+
+    cipher_hex: str = Field(..., max_length=MAX_HEX)
+    key: str = Field(..., min_length=1, max_length=MAX_KEY)
+
+
+class TripleDesDecryptInput(BaseModel):
+    """Dechiffrement 3DES-CBC."""
+
+    cipher_hex: str = Field(..., max_length=MAX_HEX)
+    key: str = Field(..., min_length=1, max_length=MAX_KEY)
+    iv_hex: str = Field(..., max_length=16)
+    salt_hex: str = Field(..., max_length=64)

@@ -80,7 +80,7 @@ def test_every_deterministic_algorithm_has_a_vector():
     correction est prouvee ailleurs (aller-retour, et vecteurs FIPS sur les
     simulateurs pas a pas, qui sont deterministes).
     """
-    PROBABILISTIC = {"aes", "des", "rsa"}
+    PROBABILISTIC = {"aes", "aes128", "aes192", "des", "rsa", "tripledes", "chacha20poly1305"}
 
     missing = [
         algo.slug
@@ -94,10 +94,12 @@ def test_every_deterministic_algorithm_has_a_vector():
 
 def test_registry_holds_every_algorithm():
     # Sprint 4 : +7 (MD5, SHA-1, SHA-3-256, BLAKE2b, HMAC-SHA256, PBKDF2, scrypt).
-    assert len(registry) == 17
+    # Sprint 5 : +6 (AES-128, AES-192, 3DES, ChaCha20-Poly1305, RC4, modes AES).
+    assert len(registry) == 23
     assert {a.slug for a in registry.all()} == {
         "caesar", "vigenere", "playfair", "railfence", "columnar",
-        "aes", "des", "rsa", "sha256", "bcrypt",
+        "aes", "aes128", "aes192", "des", "tripledes", "chacha20poly1305",
+        "rc4", "aesmodes", "rsa", "sha256", "bcrypt",
         "md5", "sha1", "sha3256", "blake2b", "hmacsha256", "pbkdf2", "scrypt",
     }
 

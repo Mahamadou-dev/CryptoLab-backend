@@ -14,11 +14,15 @@ KDF_ITERATIONS = 200_000
 SALT_SIZE = 16
 
 
-def get_aes_key(key_string: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
+# Tailles de cle valides (octets) : AES-128, AES-192, AES-256.
+VALID_KEY_SIZES = (16, 24, 32)
+
+
+def get_aes_key(key_string: str, salt: bytes | None = None, key_size: int = 32) -> tuple[bytes, bytes]:
     """
-    Derive une cle AES-256 (32 octets) a partir d'une phrase secrete par
-    PBKDF2-HMAC-SHA256, avec un sel aleatoire de 16 octets si aucun n'est
-    fourni.
+    Derive une cle AES (16, 24 ou 32 octets selon `key_size`) a partir d'une
+    phrase secrete par PBKDF2-HMAC-SHA256, avec un sel aleatoire de 16 octets
+    si aucun n'est fourni.
 
     Avant, cette fonction faisait `SHA256(phrase)` : un hash nu, sans sel ni
     etirement. Consequence directe, deux failles distinctes :
@@ -31,20 +35,26 @@ def get_aes_key(key_string: str, salt: bytes | None = None) -> tuple[bytes, byte
     PBKDF2 corrige les deux : le sel rend chaque derivation unique, et les
     200 000 iterations rendent chaque essai couteux.
     """
+    if key_size not in VALID_KEY_SIZES:
+        raise InvalidInput(
+            f"Taille de cle AES invalide : {key_size} octets. "
+            f"Valeurs acceptees : {VALID_KEY_SIZES} (AES-128/192/256)."
+        )
     if salt is None:
         salt = os.urandom(SALT_SIZE)
-    key_bytes = pbkdf2_derive(key_string, salt, iterations=KDF_ITERATIONS, dklen=32)
+    key_bytes = pbkdf2_derive(key_string, salt, iterations=KDF_ITERATIONS, dklen=key_size)
     return key_bytes, salt
 
 
-def encrypt_aes_gcm(plain_text: str, key: str) -> dict:
+def encrypt_aes_gcm(plain_text: str, key: str, key_size: int = 32) -> dict:
     """
-    Chiffre le texte en utilisant AES-GCM (AES-256).
+    Chiffre le texte en utilisant AES-GCM (AES-128/192/256 selon `key_size`,
+    AES-256 par defaut).
     Retourne un dictionnaire avec les composants nécessaires
     au déchiffrement, encodés en hexadécimal — y compris le sel PBKDF2, sans
     lequel le destinataire ne peut pas retrouver la meme cle.
     """
-    key_bytes, salt = get_aes_key(key)
+    key_bytes, salt = get_aes_key(key, key_size=key_size)
     plain_bytes = plain_text.encode('utf-8')
 
     # Créer un nouveau cipher AES-GCM
@@ -66,9 +76,11 @@ def encrypt_aes_gcm(plain_text: str, key: str) -> dict:
     }
 
 
-def decrypt_aes_gcm(cipher_hex: str, key: str, nonce_hex: str, tag_hex: str, salt_hex: str) -> str:
+def decrypt_aes_gcm(
+    cipher_hex: str, key: str, nonce_hex: str, tag_hex: str, salt_hex: str, key_size: int = 32
+) -> str:
     """
-    Déchiffre le texte AES-GCM.
+    Déchiffre le texte AES-GCM (AES-128/192/256 selon `key_size`).
 
     Lève `DecryptionFailed` si la vérification du tag échoue. GCM est un mode
     *authentifié* : il ne peut structurellement pas distinguer « mauvaise clé »
@@ -86,7 +98,7 @@ def decrypt_aes_gcm(cipher_hex: str, key: str, nonce_hex: str, tag_hex: str, sal
             "Les champs cipher_hex, nonce_hex, tag_hex et salt_hex doivent etre hexadecimaux."
         ) from exc
 
-    key_bytes, _ = get_aes_key(key, salt=salt_bytes)
+    key_bytes, _ = get_aes_key(key, salt=salt_bytes, key_size=key_size)
 
     try:
         # Initialiser le cipher avec la clé et le nonce
