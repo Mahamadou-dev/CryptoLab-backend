@@ -1,6 +1,6 @@
 # Fichier: utils/step_visualizer.py
 # Assurez-vous que tous les imports sont présents
-from . import columnar, playfair, rail_fence
+from . import columnar, playfair, rail_fence, sha256_tool
 
 
 # --- SIMULATE CAESAR (INCHANGÉ) ---
@@ -387,3 +387,111 @@ def simulate_columnar_encrypt(text: str, key: str) -> dict:
     })
 
     return {"final_result": cipher_text, "steps": steps, "matrix": grid}
+
+
+# --- SIMULATE SHA-256 ---
+def simulate_sha256(text: str) -> dict:
+    """
+    Trace étape par étape de SHA-256 (FIPS 180-4) : bourrage, découpage en
+    blocs de 512 bits, extension du planning des messages (W[0..63]) et les
+    64 tours de la fonction de compression pour chaque bloc.
+
+    Contrairement à `hash_tool.hash_sha256` (hashlib, chemin de production),
+    cette fonction recalcule tout depuis zéro pour exposer chaque tour.
+    """
+    steps = []
+    step_counter = 0
+
+    data = text.encode("utf-8")
+    padded = sha256_tool.pad_message(data)
+    blocks = [padded[i:i + 64] for i in range(0, len(padded), 64)]
+
+    steps.append({
+        "step": step_counter,
+        "phase": "Bourrage",
+        "description": (
+            f"Texte : '{text}' ({len(data)} octets, {len(data) * 8} bits).\n"
+            f"Bourrage : un bit '1', puis des zéros, puis la longueur "
+            f"d'origine sur 64 bits — jusqu'à un multiple de 512 bits.\n"
+            f"Message bourré : {len(padded) * 8} bits, soit {len(blocks)} "
+            f"bloc(s) de 512 bits."
+        ),
+        "input_text": text,
+        "block_count": len(blocks),
+    })
+    step_counter += 1
+
+    h = sha256_tool.H0
+    for block_index, block in enumerate(blocks):
+        w = sha256_tool.message_schedule(block)
+        steps.append({
+            "step": step_counter,
+            "phase": "Planning des messages",
+            "description": (
+                f"Bloc {block_index} : les 16 premiers mots W[0..15] viennent "
+                f"directement du bloc. W[16..63] sont dérivés par rotations et "
+                f"décalages des mots précédents (formule σ0/σ1, FIPS 180-4 §4.1.2)."
+            ),
+            "block": block_index,
+            "schedule": [f"{word:08x}" for word in w],
+        })
+        step_counter += 1
+
+        h_before = h
+        new_h, rounds = sha256_tool.compress(h, w)
+
+        steps.append({
+            "step": step_counter,
+            "phase": "État initial",
+            "description": (
+                f"Bloc {block_index} : variables de travail a..h initialisées "
+                f"à l'état courant du condensé."
+            ),
+            "block": block_index,
+            "state": {
+                name: f"{value:08x}"
+                for name, value in zip("abcdefgh", h_before, strict=True)
+            },
+        })
+        step_counter += 1
+
+        for round_info in rounds:
+            state_hex = {k: f"{v:08x}" for k, v in round_info["state"].items()}
+            steps.append({
+                "step": step_counter,
+                "phase": "Compression",
+                "description": (
+                    f"Bloc {block_index}, tour {round_info['round']} : "
+                    f"Ch(e,f,g) et Maj(a,b,c) combinent W[{round_info['round']}] "
+                    f"({round_info['w']:08x}) et la constante K[{round_info['round']}] "
+                    f"({round_info['k']:08x}) pour produire les nouvelles "
+                    f"variables de travail."
+                ),
+                "block": block_index,
+                "round": round_info["round"],
+                "state": state_hex,
+            })
+            step_counter += 1
+
+        h = new_h
+        steps.append({
+            "step": step_counter,
+            "phase": "Mise à jour du condensé",
+            "description": (
+                f"Bloc {block_index} terminé : chaque variable de travail "
+                f"est additionnée (mod 2^32) à l'état précédent du condensé."
+            ),
+            "block": block_index,
+            "digest_state": [f"{word:08x}" for word in h],
+        })
+        step_counter += 1
+
+    result = sha256_tool.digest_hex(h)
+    steps.append({
+        "step": step_counter,
+        "phase": "Final",
+        "description": f"Fin du processus. Empreinte : '{result}'.",
+        "final_result": result,
+    })
+
+    return {"final_result": result, "steps": steps, "block_count": len(blocks)}

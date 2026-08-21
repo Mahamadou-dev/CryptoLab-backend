@@ -14,7 +14,7 @@ import pydantic
 from fastapi import APIRouter, Body, HTTPException
 
 from db import crud
-from db.models import KeyTextInput, ShiftInput
+from db.models import KeyTextInput, ShiftInput, TextInput
 from registry.envelope import success
 from utils import aes_simulator, des_simulator, step_visualizer
 
@@ -59,6 +59,11 @@ SIMULATORS: dict[str, tuple[type[pydantic.BaseModel], Callable[..., dict], Calla
         KeyTextInput,
         aes_simulator.simulate_aes_encrypt,
         lambda d: (d.text, d.key),
+    ),
+    "sha256": (
+        TextInput,
+        step_visualizer.simulate_sha256,
+        lambda d: (d.text,),
     ),
 }
 

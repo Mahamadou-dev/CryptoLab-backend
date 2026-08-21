@@ -213,7 +213,9 @@ def test_rsa_endpoints_round_trip(client):
 
 def test_simulate_lists_available_algorithms(client):
     algorithms = unwrap(client.get("/api/simulate"))["algorithms"]
-    assert algorithms == ["aes", "caesar", "columnar", "des", "playfair", "railfence", "vigenere"]
+    assert algorithms == [
+        "aes", "caesar", "columnar", "des", "playfair", "railfence", "sha256", "vigenere",
+    ]
 
 
 @pytest.mark.parametrize(
