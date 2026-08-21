@@ -80,7 +80,16 @@ def test_every_deterministic_algorithm_has_a_vector():
     correction est prouvee ailleurs (aller-retour, et vecteurs FIPS sur les
     simulateurs pas a pas, qui sont deterministes).
     """
-    PROBABILISTIC = {"aes", "aes128", "aes192", "des", "rsa", "tripledes", "chacha20poly1305"}
+    # L'oracle de bourrage n'a pas de "valeur attendue" canonique : c'est un
+    # labo d'attaque, pas une primitive a vecteur fixe (voir tests/test_padding_oracle.py).
+    # rsasignature : PSS est probabiliste par construction (sel aleatoire), et
+    # sa contrepartie deterministe (PKCS#1 v1.5) depend d'une cle RSA-2048
+    # generee a chaque test, pas d'une cle fixe publiee. La propriete verifiee
+    # est signer -> verifier -> valide (tests/test_sprint6_asymmetric.py).
+    PROBABILISTIC = {
+        "aes", "aes128", "aes192", "des", "rsa", "tripledes", "chacha20poly1305",
+        "paddingoracle", "rsasignature",
+    }
 
     missing = [
         algo.slug
@@ -95,12 +104,16 @@ def test_every_deterministic_algorithm_has_a_vector():
 def test_registry_holds_every_algorithm():
     # Sprint 4 : +7 (MD5, SHA-1, SHA-3-256, BLAKE2b, HMAC-SHA256, PBKDF2, scrypt).
     # Sprint 5 : +6 (AES-128, AES-192, 3DES, ChaCha20-Poly1305, RC4, modes AES).
-    assert len(registry) == 23
+    # Sprint 5 (suite) : +3 (Blowfish, Camellia, oracle de bourrage PKCS#7).
+    # Sprint 6 : +5 (RSA petits nombres, signature RSA, Diffie-Hellman, ECDH, ECC).
+    assert len(registry) == 31
     assert {a.slug for a in registry.all()} == {
         "caesar", "vigenere", "playfair", "railfence", "columnar",
         "aes", "aes128", "aes192", "des", "tripledes", "chacha20poly1305",
         "rc4", "aesmodes", "rsa", "sha256", "bcrypt",
         "md5", "sha1", "sha3256", "blake2b", "hmacsha256", "pbkdf2", "scrypt",
+        "blowfish", "camellia", "paddingoracle",
+        "rsasmall", "rsasignature", "diffiehellman", "ecdh", "ecc",
     }
 
 

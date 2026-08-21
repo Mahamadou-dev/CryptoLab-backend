@@ -9,14 +9,28 @@ from db.models import (
     ChaCha20Input,
     DesDecryptInput,
     EcbPenguinInput,
+    FinalistBlockHexInput,
+    FinalistDecryptInput,
     KeyTextInput,
     ModesEncryptInput,
+    PaddingOracleAttackInput,
+    PaddingOracleEncryptInput,
+    PaddingOracleQueryInput,
     Rc4HexInput,
     Rc4Input,
     TripleDesDecryptInput,
 )
 from registry.spec import Algorithm, Family, Maturity, Operation, TestVector
-from utils import aes_tool, chacha20_tool, des_tool, modes_tool, rc4_tool, tripledes_tool
+from utils import (
+    aes_tool,
+    chacha20_tool,
+    des_tool,
+    finalists_tool,
+    modes_tool,
+    padding_oracle,
+    rc4_tool,
+    tripledes_tool,
+)
 
 
 def _aes_variant(slug: str, name: str, key_size: int, year: int, summary_size: str) -> Algorithm:
@@ -394,4 +408,187 @@ ECB_PENGUIN = Algorithm(
 )
 
 
-ALGORITHMS = (AES128, AES192, AES, DES, TRIPLEDES, CHACHA20, RC4, ECB_PENGUIN)
+BLOWFISH = Algorithm(
+    slug="blowfish",
+    name="Blowfish-CBC",
+    family=Family.SYMMETRIC,
+    summary=(
+        "Chiffre par blocs concu par Bruce Schneier en 1993, libre de droits, "
+        "predecesseur de Twofish. Jamais casse sur cle pleine longueur, mais "
+        "son bloc de 64 bits le rend vulnerable a l'attaque par anniversaire "
+        "Sweet32 au-dela de quelques Go sous la meme cle — la raison de sa "
+        "mise a l'ecart au profit d'AES (bloc de 128 bits), pas une faiblesse "
+        "de son chiffrement lui-meme."
+    ),
+    maturity=Maturity.EDUCATIONAL,
+    difficulty=3,
+    year=1993,
+    aliases=("schneier", "twofish", "sweet32", "finaliste"),
+    operations=(
+        Operation(
+            name="encrypt",
+            input_model=KeyTextInput,
+            handler=lambda d: finalists_tool.encrypt_blowfish_cbc(d.text, d.key),
+            summary="Chiffrer en Blowfish-CBC",
+        ),
+        Operation(
+            name="decrypt",
+            input_model=FinalistDecryptInput,
+            handler=lambda d: {
+                "plain": finalists_tool.decrypt_blowfish_cbc(d.cipher_hex, d.key, d.iv_hex, d.salt_hex)
+            },
+            summary="Dechiffrer un Blowfish-CBC",
+            length_field="cipher_hex",
+        ),
+        Operation(
+            name="ecb-block",
+            input_model=FinalistBlockHexInput,
+            handler=lambda d: finalists_tool.blowfish_ecb_block_hex(d.key_hex, d.plaintext_hex),
+            summary="Chiffrer un bloc de 8 octets en Blowfish-ECB (vecteurs officiels)",
+            path="/blowfish/ecb-block",
+            length_field="plaintext_hex",
+        ),
+    ),
+    vectors=(
+        TestVector(
+            operation="ecb-block",
+            inputs={"key_hex": "0000000000000000", "plaintext_hex": "0000000000000000"},
+            expected={"cipher_hex": "4ef997456198dd78"},
+            source="Bruce Schneier, vecteurs de test Blowfish officiels (cle nulle)",
+        ),
+        TestVector(
+            operation="ecb-block",
+            inputs={"key_hex": "ffffffffffffffff", "plaintext_hex": "ffffffffffffffff"},
+            expected={"cipher_hex": "51866fd5b85ecb8a"},
+            source="Bruce Schneier, vecteurs de test Blowfish officiels (cle a un)",
+        ),
+    ),
+)
+
+
+CAMELLIA = Algorithm(
+    slug="camellia",
+    name="Camellia-128-CBC",
+    family=Family.SYMMETRIC,
+    summary=(
+        "Chiffre par blocs co-developpe par Mitsubishi Electric et NTT (2000), "
+        "retenu par CRYPTREC, l'ISO/IEC 18033-3 et l'IETF (RFC 3713) comme "
+        "alternative a AES a securite comparable. Encore largement utilise au "
+        "Japon (TLS, IPsec)."
+    ),
+    maturity=Maturity.CURRENT,
+    difficulty=4,
+    year=2000,
+    aliases=("ntt", "mitsubishi", "iso18033", "japon"),
+    operations=(
+        Operation(
+            name="encrypt",
+            input_model=KeyTextInput,
+            handler=lambda d: finalists_tool.encrypt_camellia_cbc(d.text, d.key),
+            summary="Chiffrer en Camellia-128-CBC",
+        ),
+        Operation(
+            name="decrypt",
+            input_model=FinalistDecryptInput,
+            handler=lambda d: {
+                "plain": finalists_tool.decrypt_camellia_cbc(d.cipher_hex, d.key, d.iv_hex, d.salt_hex)
+            },
+            summary="Dechiffrer un Camellia-128-CBC",
+            length_field="cipher_hex",
+        ),
+        Operation(
+            name="ecb-block",
+            input_model=FinalistBlockHexInput,
+            handler=lambda d: finalists_tool.camellia_ecb_block_hex(d.key_hex, d.plaintext_hex),
+            summary="Chiffrer un bloc de 16 octets en Camellia-ECB (vecteur officiel)",
+            path="/camellia/ecb-block",
+            length_field="plaintext_hex",
+        ),
+    ),
+    vectors=(
+        TestVector(
+            operation="ecb-block",
+            inputs={
+                "key_hex": "0123456789abcdeffedcba9876543210",
+                "plaintext_hex": "0123456789abcdeffedcba9876543210",
+            },
+            expected={"cipher_hex": "67673138549669730857065648eabe43"},
+            source="RFC 3713, annexe A (vecteur de test Camellia-128 officiel NTT/Mitsubishi)",
+        ),
+    ),
+    # Twofish et Serpent (finalistes retenus du concours AES, tous deux battus
+    # par Rijndael en 2000) restent hors de ce catalogue : ni PyCryptodome ni
+    # pyca/cryptography ne les exposent, et l'environnement n'a pas de
+    # dependance simple sans compilation native (voir utils/finalists_tool.py
+    # et SPRINTS.md Sprint 5).
+)
+
+
+PADDING_ORACLE = Algorithm(
+    slug="paddingoracle",
+    name="Oracle de bourrage PKCS#7",
+    family=Family.SYMMETRIC,
+    summary=(
+        "AES-CBC + PKCS#7 avec cle et IV fournis en clair : un labo d'attaque "
+        "qui casse le chiffrement sans jamais connaitre la cle, en n'exploitant "
+        "que la reponse vrai/faux d'un serveur sur la validite du bourrage "
+        "(attaque de Vaudenay, 2002). C'est pour empecher exactement cette "
+        "fuite que les modes authentifies (GCM, Poly1305) existent."
+    ),
+    maturity=Maturity.EDUCATIONAL,
+    difficulty=5,
+    year=2002,
+    aliases=("vaudenay", "cbc", "pkcs7", "oracle"),
+    operations=(
+        Operation(
+            name="encrypt",
+            input_model=PaddingOracleEncryptInput,
+            handler=lambda d: padding_oracle.encrypt_for_oracle(d.key_hex, d.iv_hex, d.plaintext),
+            summary="Chiffrer un texte en AES-CBC + PKCS#7 (cle et IV en clair)",
+            length_field="plaintext",
+        ),
+        Operation(
+            name="oracle-query",
+            input_model=PaddingOracleQueryInput,
+            handler=lambda d: padding_oracle.oracle_query(d.key_hex, d.iv_hex, d.cipher_hex),
+            summary="Interroger l'oracle : ce couple (IV, chiffre) a-t-il un bourrage valide ?",
+            path="/paddingoracle/oracle-query",
+            length_field="cipher_hex",
+        ),
+        Operation(
+            name="attack",
+            input_model=PaddingOracleAttackInput,
+            handler=lambda d: padding_oracle.padding_oracle_attack(d.key_hex, d.iv_hex, d.cipher_hex),
+            summary="Dechiffrer entierement via l'oracle de bourrage, sans la cle",
+            path="/paddingoracle/attack",
+            length_field="cipher_hex",
+        ),
+    ),
+    # Pas de vecteur NIST/RFC (il n'existe pas de reference officielle pour
+    # une demonstration d'attaque), mais `encrypt` est entierement
+    # deterministe (cle et IV fournis en clair par l'appelant, sans tirage
+    # aleatoire) : un vecteur genere localement, verrouille ici, sert de
+    # garde non-regression. La propriete cryptographique verifiee ailleurs
+    # (tests/test_padding_oracle.py) est l'invariant chiffrer -> attaquer
+    # sans la cle -> retomber exactement sur le clair d'origine.
+    vectors=(
+        TestVector(
+            operation="encrypt",
+            inputs={
+                "key_hex": "000102030405060708090a0b0c0d0e0f",
+                "iv_hex": "101112131415161718191a1b1c1d1e1f",
+                "plaintext": "Attaque",
+            },
+            expected={"cipher_hex": "b4e262df6ef2d4d08dc50af8c4d9aed3", "block_count": 1},
+            source="Vecteur local (module deterministe, cle et IV fournis en clair) : "
+            "verrouille la sortie contre une regression, ne pretend pas etre un "
+            "vecteur NIST/RFC.",
+        ),
+    ),
+)
+
+
+ALGORITHMS = (
+    AES128, AES192, AES, DES, TRIPLEDES, BLOWFISH, CAMELLIA, CHACHA20, RC4,
+    ECB_PENGUIN, PADDING_ORACLE,
+)

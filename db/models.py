@@ -226,3 +226,130 @@ class TripleDesDecryptInput(BaseModel):
     key: str = Field(..., min_length=1, max_length=MAX_KEY)
     iv_hex: str = Field(..., max_length=16)
     salt_hex: str = Field(..., max_length=64)
+
+
+class FinalistDecryptInput(BaseModel):
+    """Dechiffrement Blowfish-CBC (candidat de la competition AES)."""
+
+    cipher_hex: str = Field(..., max_length=MAX_HEX)
+    key: str = Field(..., min_length=1, max_length=MAX_KEY)
+    iv_hex: str = Field(..., max_length=32)
+    salt_hex: str = Field(..., max_length=64)
+
+
+class FinalistBlockHexInput(BaseModel):
+    """Bloc brut hexadecimal, pour rejouer des vecteurs officiels a cle fixe."""
+
+    key_hex: str = Field(..., max_length=64)
+    plaintext_hex: str = Field(..., max_length=64)
+
+
+class PaddingOracleEncryptInput(BaseModel):
+    """Chiffrement AES-CBC + PKCS#7, cle et IV en clair (labo d'attaque)."""
+
+    key_hex: str = Field(..., max_length=64)
+    iv_hex: str = Field(..., max_length=32)
+    plaintext: str = Field(..., max_length=MAX_TEXT)
+
+
+class PaddingOracleQueryInput(BaseModel):
+    """Une requete a l'oracle de bourrage : ce couple (IV, chiffre) est-il valide ?"""
+
+    key_hex: str = Field(..., max_length=64)
+    iv_hex: str = Field(..., max_length=32)
+    cipher_hex: str = Field(..., max_length=MAX_HEX)
+
+
+class PaddingOracleAttackInput(BaseModel):
+    """Dechiffrement complet par attaque de l'oracle de bourrage (aucun acces direct a la cle)."""
+
+    key_hex: str = Field(..., max_length=64)
+    iv_hex: str = Field(..., max_length=32)
+    cipher_hex: str = Field(..., max_length=MAX_HEX)
+
+
+# --- Sprint 6 : cle publique ---------------------------------------------------
+
+# Borne large (bien au-dela de secp256k1, 256 bits) mais representable en
+# float sans deborder : la doc OpenAPI serialise `le=...` via JSON, et
+# 2**4096 declenchait un OverflowError a la generation du schema.
+MAX_SMALL_INT = 10**300
+
+
+class SmallRsaKeygenInput(BaseModel):
+    """RSA « petits nombres » : p et q sont fournis par l'appelant, jamais generes au hasard."""
+
+    p: int = Field(..., ge=2, le=1_000_000)
+    q: int = Field(..., ge=2, le=1_000_000)
+    e: int = Field(default=65537, ge=2, le=1_000_000)
+
+
+class SmallRsaEncryptInput(BaseModel):
+    message: int = Field(..., ge=0, le=MAX_SMALL_INT)
+    e: int = Field(..., ge=2, le=MAX_SMALL_INT)
+    n: int = Field(..., ge=2, le=MAX_SMALL_INT)
+
+
+class SmallRsaDecryptInput(BaseModel):
+    cipher: int = Field(..., ge=0, le=MAX_SMALL_INT)
+    d: int = Field(..., ge=2, le=MAX_SMALL_INT)
+    n: int = Field(..., ge=2, le=MAX_SMALL_INT)
+
+
+class SmallRsaSignInput(BaseModel):
+    message: int = Field(..., ge=0, le=MAX_SMALL_INT)
+    d: int = Field(..., ge=2, le=MAX_SMALL_INT)
+    n: int = Field(..., ge=2, le=MAX_SMALL_INT)
+
+
+class SmallRsaVerifyInput(BaseModel):
+    message: int = Field(..., ge=0, le=MAX_SMALL_INT)
+    signature: int = Field(..., ge=0, le=MAX_SMALL_INT)
+    e: int = Field(..., ge=2, le=MAX_SMALL_INT)
+    n: int = Field(..., ge=2, le=MAX_SMALL_INT)
+
+
+class RsaSignInput(BaseModel):
+    """Signature RSA de production (PKCS#1 v1.5 ou PSS selon la route)."""
+
+    message: str = Field(..., max_length=MAX_TEXT)
+    private_key: str = Field(..., max_length=MAX_PEM)
+
+
+class RsaVerifyInput(BaseModel):
+    message: str = Field(..., max_length=MAX_TEXT)
+    signature_hex: str = Field(..., max_length=MAX_HEX)
+    public_key: str = Field(..., max_length=MAX_PEM)
+
+
+class DhSmallNumbersInput(BaseModel):
+    """Diffie-Hellman « a la main » sur un petit groupe (Z/pZ)*."""
+
+    p: int = Field(..., ge=5, le=1_000_000_007)
+    g: int = Field(..., ge=2, le=1_000_000_007)
+    a: int = Field(..., ge=1, le=1_000_000_007)
+    b: int = Field(..., ge=1, le=1_000_000_007)
+
+
+class EcdhExchangeInput(BaseModel):
+    """Echange ECDH de production (X25519, RFC 7748)."""
+
+    private_hex: str = Field(..., min_length=64, max_length=64)
+    peer_public_hex: str = Field(..., min_length=64, max_length=64)
+
+
+class EccPointAddInput(BaseModel):
+    """Addition de deux points sur secp256k1, en coordonnees affines."""
+
+    x1: int = Field(..., ge=0, le=MAX_SMALL_INT)
+    y1: int = Field(..., ge=0, le=MAX_SMALL_INT)
+    x2: int = Field(..., ge=0, le=MAX_SMALL_INT)
+    y2: int = Field(..., ge=0, le=MAX_SMALL_INT)
+
+
+class EccScalarMultiplyInput(BaseModel):
+    """Multiplication scalaire k*P sur secp256k1 (l'operation au coeur d'ECDH/ECDSA)."""
+
+    k: int = Field(..., ge=1, le=MAX_SMALL_INT)
+    x: int = Field(..., ge=0, le=MAX_SMALL_INT)
+    y: int = Field(..., ge=0, le=MAX_SMALL_INT)
