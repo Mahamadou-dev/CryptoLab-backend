@@ -108,12 +108,12 @@ def test_registry_holds_every_algorithm():
     # Sprint 6 : +5 (RSA petits nombres, signature RSA, Diffie-Hellman, ECDH, ECC).
     # Sprint 6 (suite) : +2 (ECDSA/secp256k1, Ed25519).
     # Sprint 6 (fin) : +2 (DSA, ElGamal).
-    assert len(registry) == 35
+    assert len(registry) == 36
     assert {a.slug for a in registry.all()} == {
         "caesar", "vigenere", "playfair", "railfence", "columnar",
         "aes", "aes128", "aes192", "des", "tripledes", "chacha20poly1305",
         "rc4", "aesmodes", "rsa", "sha256", "bcrypt",
-        "md5", "sha1", "sha3256", "blake2b", "hmacsha256", "pbkdf2", "scrypt",
+        "md5", "sha1", "sha3256", "blake2b", "hmacsha256", "pbkdf2", "scrypt", "argon2id",
         "blowfish", "camellia", "paddingoracle",
         "rsasmall", "rsasignature", "diffiehellman", "ecdh", "ecc",
         "ecdsa", "ed25519", "dsa", "elgamal",

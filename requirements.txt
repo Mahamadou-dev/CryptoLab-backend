@@ -10,6 +10,9 @@ bcrypt>=4.2,<5.0
 # ChaCha20-Poly1305 (RFC 8439) : pyca/cryptography l'expose directement, sans
 # reimplementation pedagogique (chiffrement de flot moderne, standard TLS 1.3).
 cryptography>=43,<46
+# Argon2id (RFC 9106) : derivation de cle a cout memoire+CPU, recommandation
+# actuelle OWASP devant PBKDF2/scrypt.
+argon2-cffi>=23,<26
 
 # --- Authentification ---
 # PyJWT signe et verifie les jetons de session ; email-validator est requis par

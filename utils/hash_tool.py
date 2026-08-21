@@ -204,3 +204,34 @@ def scrypt_derive(
     l'ecart avec PBKDF2 qu'il comble.
     """
     return hashlib.scrypt(password.encode('utf-8'), salt=salt, n=n, r=r, p=p, dklen=dklen)
+
+
+def argon2id_derive(
+    password: str,
+    salt: bytes,
+    time_cost: int = 3,
+    memory_cost_kib: int = 65_536,
+    parallelism: int = 1,
+    dklen: int = 32,
+) -> bytes:
+    """
+    Argon2id (RFC 9106), vainqueur du Password Hashing Competition (2015).
+    Hybride entre Argon2i (resistant aux attaques par canal auxiliaire, pour
+    la premiere passe) et Argon2d (resistant au compromis temps-memoire, pour
+    les passes suivantes) : `memory_cost_kib` fixe la taille de la grille
+    memoire a remplir (en kio), `time_cost` le nombre de passes dessus,
+    `parallelism` le nombre de fils qui la remplissent independamment. C'est
+    la recommandation actuelle (OWASP, RFC 9106) devant PBKDF2 et scrypt.
+    """
+    from argon2.low_level import Type, hash_secret_raw
+
+    return hash_secret_raw(
+        secret=password.encode('utf-8'),
+        salt=salt,
+        time_cost=time_cost,
+        memory_cost=memory_cost_kib,
+        parallelism=parallelism,
+        hash_len=dklen,
+        type=Type.ID,
+        version=19,
+    )

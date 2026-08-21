@@ -183,6 +183,28 @@ def test_scrypt_different_salts_give_different_keys():
     assert a != b
 
 
+# --- Argon2id ----------------------------------------------------------------------
+
+def test_argon2id_reference_vector():
+    """Vecteur de non-regression calcule avec argon2-cffi (voir registry/catalog/hashing.py)."""
+    derived = hash_tool.argon2id_derive(
+        "password", b"somesalt12345678", time_cost=2, memory_cost_kib=1024, parallelism=1, dklen=32
+    )
+    assert derived.hex() == "32c5dab38bfc007bc784bb11b476b39e83d5c2a6d81f008cba65cb333eb5dd77"
+
+
+def test_argon2id_different_salts_give_different_keys():
+    a = hash_tool.argon2id_derive("meme-mot-de-passe", b"\x00" * 16, time_cost=2, memory_cost_kib=1024)
+    b = hash_tool.argon2id_derive("meme-mot-de-passe", b"\x01" * 16, time_cost=2, memory_cost_kib=1024)
+    assert a != b
+
+
+def test_argon2id_higher_memory_cost_changes_output():
+    a = hash_tool.argon2id_derive("motdepasse", b"\x02" * 16, time_cost=2, memory_cost_kib=1024)
+    b = hash_tool.argon2id_derive("motdepasse", b"\x02" * 16, time_cost=2, memory_cost_kib=2048)
+    assert a != b
+
+
 # --- bcrypt : facteur de cout reglable --------------------------------------------
 
 def test_bcrypt_default_cost_round_trips():

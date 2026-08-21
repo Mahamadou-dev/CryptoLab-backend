@@ -49,6 +49,29 @@ def test_sha256_single_block_for_short_input():
     assert step_visualizer.simulate_sha256("abc")["block_count"] == 1
 
 
+def test_sha256_steps_carry_structured_trace():
+    """
+    Chaque etape porte desormais, EN PLUS de `description` (texte), une cle
+    `structured` conforme au format vise par CLAUDE.md §5 : etape, operation,
+    etat avant/apres, cellules a surligner, formule. Ajout additif : les
+    consommateurs de `description` ne sont pas affectes (voir SPRINTS.md).
+    """
+    result = step_visualizer.simulate_sha256("abc")
+    for step in result["steps"]:
+        assert "description" in step
+        structured = step["structured"]
+        assert structured["step"] == step["step"]
+        assert isinstance(structured["operation"], str) and structured["operation"]
+        assert "state_before" in structured
+        assert "state_after" in structured
+        assert isinstance(structured["highlight"], list)
+        assert "formula" in structured
+
+    operations = {step["structured"]["operation"] for step in result["steps"]}
+    assert "compression-round" in operations
+    assert "final-digest" in operations
+
+
 @pytest.mark.parametrize("seed", range(20))
 def test_sha256_simulator_matches_hashlib(seed):
     text = _random_text(seed + 1, seed)

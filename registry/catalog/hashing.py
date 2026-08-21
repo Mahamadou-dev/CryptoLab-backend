@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from db.models import (
+    Argon2idInput,
     BcryptHashInput,
     BcryptVerifyInput,
     HmacLengthExtensionInput,
@@ -435,4 +436,77 @@ SCRYPT = Algorithm(
     ),
 )
 
-ALGORITHMS = (SHA256, SHA1, MD5, SHA3_256, BLAKE2B, HMAC_SHA256, PBKDF2, SCRYPT, BCRYPT)
+ARGON2ID = Algorithm(
+    slug="argon2id",
+    name="Argon2id",
+    family=Family.HASH,
+    summary=(
+        "Derivation de cle a cout memoire et CPU (RFC 9106), vainqueur du "
+        "Password Hashing Competition (2015) et recommandation actuelle "
+        "(OWASP) devant PBKDF2 et scrypt. Hybride Argon2i/Argon2d : resistant "
+        "aux canaux auxiliaires ET au compromis temps-memoire."
+    ),
+    maturity=Maturity.CURRENT,
+    difficulty=4,
+    year=2015,
+    aliases=("derivation de cle", "kdf", "memory-hard", "phc"),
+    operations=(
+        Operation(
+            name="derive",
+            input_model=Argon2idInput,
+            handler=lambda d: {
+                "derived_hex": hash_tool.argon2id_derive(
+                    d.password,
+                    bytes.fromhex(d.salt_hex),
+                    d.time_cost,
+                    d.memory_cost_kib,
+                    d.parallelism,
+                    d.dklen,
+                ).hex(),
+                "cost_parameters": {
+                    "time_cost": d.time_cost,
+                    "memory_cost_kib": d.memory_cost_kib,
+                    "parallelism": d.parallelism,
+                },
+            },
+            summary="Deriver une cle par Argon2id",
+            path="/argon2id",
+            length_field="password",
+        ),
+    ),
+    vectors=(
+        # RFC 9106 §5.3 publie un vecteur Argon2id, mais avec un secret et des
+        # donnees associees en plus du mot de passe/sel — non exposes par la
+        # route publique (elle ne prend que password/salt, comme PBKDF2 et
+        # scrypt ci-dessus) ni par `argon2-cffi` sur ce systeme (la fonction
+        # bas niveau disponible ici n'accepte pas ces deux parametres). Le
+        # vecteur ci-dessous est calcule directement avec `argon2.low_level`
+        # et fige : la CI verifie que l'implementation ne derive plus dans le
+        # temps, meme methode deja utilisee pour ECDH/X25519 en Sprint 6.
+        TestVector(
+            operation="derive",
+            inputs={
+                "password": "password",
+                "salt_hex": "736f6d6573616c743132333435363738",
+                "time_cost": 2,
+                "memory_cost_kib": 1024,
+                "parallelism": 1,
+                "dklen": 32,
+            },
+            expected={
+                "derived_hex": (
+                    "32c5dab38bfc007bc784bb11b476b39e83d5c2a6d81f008cba65cb333eb5dd77"
+                )
+            },
+            source=(
+                "Calcule avec argon2-cffi (argon2.low_level.hash_secret_raw, "
+                "Type.ID, version 0x13) ; fige comme vecteur de non-regression "
+                "faute de vecteur RFC 9106 reproductible sans secret/AD"
+            ),
+        ),
+    ),
+)
+
+ALGORITHMS = (
+    SHA256, SHA1, MD5, SHA3_256, BLAKE2B, HMAC_SHA256, PBKDF2, SCRYPT, ARGON2ID, BCRYPT,
+)

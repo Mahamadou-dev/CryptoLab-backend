@@ -104,6 +104,17 @@ class ScryptInput(BaseModel):
     dklen: int = Field(default=32, ge=1, le=128)
 
 
+class Argon2idInput(BaseModel):
+    """Derivation Argon2id (RFC 9106)."""
+
+    password: str = Field(..., max_length=MAX_KEY)
+    salt_hex: str = Field(..., max_length=128)
+    time_cost: int = Field(default=3, ge=1, le=20)
+    memory_cost_kib: int = Field(default=65_536, ge=8, le=2_097_152)
+    parallelism: int = Field(default=1, ge=1, le=16)
+    dklen: int = Field(default=32, ge=4, le=128)
+
+
 class AesDecryptInput(BaseModel):
     """Dechiffrement AES-256-GCM."""
 

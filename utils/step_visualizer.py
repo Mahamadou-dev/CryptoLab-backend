@@ -1,6 +1,50 @@
 # Fichier: utils/step_visualizer.py
 # Assurez-vous que tous les imports sont présents
+from typing import Any, TypedDict
+
 from . import columnar, playfair, rail_fence, sha1_tool, sha256_tool
+
+
+class StructuredStep(TypedDict, total=False):
+    """
+    Format de trace structure vise par CLAUDE.md §5 : etape, operation, etat
+    avant/apres, cellules a surligner, formule. Le frontend peut deriver texte,
+    tableau et 3D depuis la meme source, au lieu de parser une chaine.
+
+    Ajoute EN PARALLELE de la cle `description` (chaine texte) existante,
+    jamais en remplacement : les simulateurs et pages qui consomment
+    `description` aujourd'hui continuent de fonctionner a l'identique. Une
+    migration complete de tous les simulateurs vers ce seul format est un
+    chantier a part (voir SPRINTS.md, Sprint 2) — celui-ci en est la premiere
+    application, sur SHA-256, qui sert de reference pour les suivantes.
+    """
+
+    step: int
+    operation: str
+    state_before: Any
+    state_after: Any
+    highlight: list[str]
+    formula: str | None
+
+
+def structured_step(
+    step: int,
+    operation: str,
+    *,
+    state_before: Any = None,
+    state_after: Any = None,
+    highlight: list[str] | None = None,
+    formula: str | None = None,
+) -> StructuredStep:
+    """Construit une entree `StructuredStep`, avec des valeurs par defaut sures."""
+    return StructuredStep(
+        step=step,
+        operation=operation,
+        state_before=state_before,
+        state_after=state_after,
+        highlight=highlight or [],
+        formula=formula,
+    )
 
 
 # --- SIMULATE CAESAR (INCHANGÉ) ---
@@ -418,6 +462,13 @@ def simulate_sha256(text: str) -> dict:
         ),
         "input_text": text,
         "block_count": len(blocks),
+        "structured": structured_step(
+            step_counter,
+            "pad",
+            state_before={"text": text, "bits": len(data) * 8},
+            state_after={"padded_bits": len(padded) * 8, "block_count": len(blocks)},
+            formula="len(data) + 1 bit + zero-padding + longueur sur 64 bits, jusqu'a un multiple de 512 bits",
+        ),
     })
     step_counter += 1
 
@@ -434,6 +485,13 @@ def simulate_sha256(text: str) -> dict:
             ),
             "block": block_index,
             "schedule": [f"{word:08x}" for word in w],
+            "structured": structured_step(
+                step_counter,
+                "message-schedule",
+                state_after={"W": [f"{word:08x}" for word in w]},
+                highlight=[f"W[{i}]" for i in range(16)],
+                formula="W[t] = sigma1(W[t-2]) + W[t-7] + sigma0(W[t-15]) + W[t-16], pour t >= 16",
+            ),
         })
         step_counter += 1
 
@@ -452,6 +510,15 @@ def simulate_sha256(text: str) -> dict:
                 name: f"{value:08x}"
                 for name, value in zip("abcdefgh", h_before, strict=True)
             },
+            "structured": structured_step(
+                step_counter,
+                "init-working-variables",
+                state_after={
+                    name: f"{value:08x}"
+                    for name, value in zip("abcdefgh", h_before, strict=True)
+                },
+                highlight=list("abcdefgh"),
+            ),
         })
         step_counter += 1
 
@@ -470,10 +537,21 @@ def simulate_sha256(text: str) -> dict:
                 "block": block_index,
                 "round": round_info["round"],
                 "state": state_hex,
+                "structured": structured_step(
+                    step_counter,
+                    "compression-round",
+                    state_after=state_hex,
+                    highlight=["e", "f", "g", "a", "b", "c"],
+                    formula=(
+                        f"T1 = h + Ch(e,f,g) + Sigma1(e) + K[{round_info['round']}] + "
+                        f"W[{round_info['round']}] ; T2 = Sigma0(a) + Maj(a,b,c)"
+                    ),
+                ),
             })
             step_counter += 1
 
         h = new_h
+        digest_hex = [f"{word:08x}" for word in h]
         steps.append({
             "step": step_counter,
             "phase": "Mise à jour du condensé",
@@ -482,7 +560,17 @@ def simulate_sha256(text: str) -> dict:
                 f"est additionnée (mod 2^32) à l'état précédent du condensé."
             ),
             "block": block_index,
-            "digest_state": [f"{word:08x}" for word in h],
+            "digest_state": digest_hex,
+            "structured": structured_step(
+                step_counter,
+                "digest-update",
+                state_before={
+                    name: f"{value:08x}"
+                    for name, value in zip("abcdefgh", h_before, strict=True)
+                },
+                state_after={"H": digest_hex},
+                formula="H[i] = (H[i] + working_variable[i]) mod 2^32",
+            ),
         })
         step_counter += 1
 
@@ -492,6 +580,11 @@ def simulate_sha256(text: str) -> dict:
         "phase": "Final",
         "description": f"Fin du processus. Empreinte : '{result}'.",
         "final_result": result,
+        "structured": structured_step(
+            step_counter,
+            "final-digest",
+            state_after={"digest": result},
+        ),
     })
 
     return {"final_result": result, "steps": steps, "block_count": len(blocks)}
