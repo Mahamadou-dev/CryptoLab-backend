@@ -88,7 +88,7 @@ def test_every_deterministic_algorithm_has_a_vector():
     # est signer -> verifier -> valide (tests/test_sprint6_asymmetric.py).
     PROBABILISTIC = {
         "aes", "aes128", "aes192", "des", "rsa", "tripledes", "chacha20poly1305",
-        "paddingoracle", "rsasignature",
+        "paddingoracle", "rsasignature", "ecdsa", "ed25519", "dsa",
     }
 
     missing = [
@@ -106,7 +106,9 @@ def test_registry_holds_every_algorithm():
     # Sprint 5 : +6 (AES-128, AES-192, 3DES, ChaCha20-Poly1305, RC4, modes AES).
     # Sprint 5 (suite) : +3 (Blowfish, Camellia, oracle de bourrage PKCS#7).
     # Sprint 6 : +5 (RSA petits nombres, signature RSA, Diffie-Hellman, ECDH, ECC).
-    assert len(registry) == 31
+    # Sprint 6 (suite) : +2 (ECDSA/secp256k1, Ed25519).
+    # Sprint 6 (fin) : +2 (DSA, ElGamal).
+    assert len(registry) == 35
     assert {a.slug for a in registry.all()} == {
         "caesar", "vigenere", "playfair", "railfence", "columnar",
         "aes", "aes128", "aes192", "des", "tripledes", "chacha20poly1305",
@@ -114,6 +116,7 @@ def test_registry_holds_every_algorithm():
         "md5", "sha1", "sha3256", "blake2b", "hmacsha256", "pbkdf2", "scrypt",
         "blowfish", "camellia", "paddingoracle",
         "rsasmall", "rsasignature", "diffiehellman", "ecdh", "ecc",
+        "ecdsa", "ed25519", "dsa", "elgamal",
     }
 
 

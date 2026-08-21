@@ -353,3 +353,65 @@ class EccScalarMultiplyInput(BaseModel):
     k: int = Field(..., ge=1, le=MAX_SMALL_INT)
     x: int = Field(..., ge=0, le=MAX_SMALL_INT)
     y: int = Field(..., ge=0, le=MAX_SMALL_INT)
+
+
+class EcdsaSignInput(BaseModel):
+    """Signature ECDSA/secp256k1 (probabiliste : nonce aleatoire a chaque appel)."""
+
+    message: str = Field(..., max_length=MAX_TEXT)
+    private_key: str = Field(..., max_length=MAX_PEM)
+
+
+class EcdsaVerifyInput(BaseModel):
+    message: str = Field(..., max_length=MAX_TEXT)
+    signature_hex: str = Field(..., max_length=MAX_HEX)
+    public_key: str = Field(..., max_length=MAX_PEM)
+
+
+class Ed25519SignInput(BaseModel):
+    """Signature Ed25519 (RFC 8032), message et cle privee en hexadecimal (deterministe)."""
+
+    message_hex: str = Field(..., max_length=MAX_HEX)
+    private_hex: str = Field(..., min_length=64, max_length=64)
+
+
+class Ed25519VerifyInput(BaseModel):
+    message_hex: str = Field(..., max_length=MAX_HEX)
+    signature_hex: str = Field(..., min_length=128, max_length=128)
+    public_hex: str = Field(..., min_length=64, max_length=64)
+
+
+class DsaSignInput(BaseModel):
+    """Signature DSA (probabiliste : nonce aleatoire a chaque appel)."""
+
+    message: str = Field(..., max_length=MAX_TEXT)
+    private_key: str = Field(..., max_length=MAX_PEM)
+
+
+class DsaVerifyInput(BaseModel):
+    message: str = Field(..., max_length=MAX_TEXT)
+    signature_hex: str = Field(..., max_length=MAX_HEX)
+    public_key: str = Field(..., max_length=MAX_PEM)
+
+
+class ElGamalKeygenInput(BaseModel):
+    """Generation de cles ElGamal 'petits nombres' : p premier, g generateur, x secret."""
+
+    p: int = Field(..., ge=5, le=MAX_SMALL_INT)
+    g: int = Field(..., ge=2, le=MAX_SMALL_INT)
+    x: int = Field(..., ge=1, le=MAX_SMALL_INT)
+
+
+class ElGamalEncryptInput(BaseModel):
+    p: int = Field(..., ge=5, le=MAX_SMALL_INT)
+    g: int = Field(..., ge=2, le=MAX_SMALL_INT)
+    y: int = Field(..., ge=2, le=MAX_SMALL_INT)
+    m: int = Field(..., ge=0, le=MAX_SMALL_INT)
+    k: int | None = Field(default=None, ge=1, le=MAX_SMALL_INT)
+
+
+class ElGamalDecryptInput(BaseModel):
+    p: int = Field(..., ge=5, le=MAX_SMALL_INT)
+    x: int = Field(..., ge=1, le=MAX_SMALL_INT)
+    c1: int = Field(..., ge=1, le=MAX_SMALL_INT)
+    c2: int = Field(..., ge=0, le=MAX_SMALL_INT)
