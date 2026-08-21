@@ -65,6 +65,11 @@ SIMULATORS: dict[str, tuple[type[pydantic.BaseModel], Callable[..., dict], Calla
         step_visualizer.simulate_sha256,
         lambda d: (d.text,),
     ),
+    "sha1": (
+        TextInput,
+        step_visualizer.simulate_sha1,
+        lambda d: (d.text,),
+    ),
 }
 
 

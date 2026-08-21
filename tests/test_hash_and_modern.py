@@ -63,9 +63,28 @@ def test_bcrypt_rejects_malformed_hash():
 def test_aes_gcm_round_trip():
     result = aes_tool.encrypt_aes_gcm("Message secret", "ma-cle")
     plain = aes_tool.decrypt_aes_gcm(
-        result["cipher_hex"], "ma-cle", result["nonce_hex"], result["tag_hex"]
+        result["cipher_hex"], "ma-cle", result["nonce_hex"], result["tag_hex"], result["salt_hex"]
     )
     assert plain == "Message secret"
+
+
+def test_aes_gcm_uses_a_fresh_salt_each_time():
+    """Le sel PBKDF2 est aleatoire : deux chiffrements ne partagent pas de cle derivee."""
+    first = aes_tool.encrypt_aes_gcm("Message", "meme-cle")
+    second = aes_tool.encrypt_aes_gcm("Message", "meme-cle")
+    assert first["salt_hex"] != second["salt_hex"]
+
+
+def test_aes_gcm_rejects_wrong_salt():
+    """Un mauvais sel derive une cle differente : GCM le detecte comme une mauvaise cle."""
+    result = aes_tool.encrypt_aes_gcm("Message secret", "ma-cle")
+    wrong_salt = bytes.fromhex(result["salt_hex"])
+    wrong_salt = bytes([wrong_salt[0] ^ 0x01]) + wrong_salt[1:]
+    with pytest.raises(DecryptionFailed):
+        aes_tool.decrypt_aes_gcm(
+            result["cipher_hex"], "ma-cle", result["nonce_hex"], result["tag_hex"],
+            wrong_salt.hex(),
+        )
 
 
 def test_aes_gcm_uses_a_fresh_nonce_each_time():
@@ -79,7 +98,8 @@ def test_aes_gcm_rejects_wrong_key():
     result = aes_tool.encrypt_aes_gcm("Message secret", "bonne-cle")
     with pytest.raises(DecryptionFailed):
         aes_tool.decrypt_aes_gcm(
-            result["cipher_hex"], "mauvaise-cle", result["nonce_hex"], result["tag_hex"]
+            result["cipher_hex"], "mauvaise-cle", result["nonce_hex"], result["tag_hex"],
+            result["salt_hex"],
         )
 
 
@@ -91,25 +111,44 @@ def test_aes_gcm_detects_tampering():
 
     with pytest.raises(DecryptionFailed):
         aes_tool.decrypt_aes_gcm(
-            tampered.hex(), "cle", result["nonce_hex"], result["tag_hex"]
+            tampered.hex(), "cle", result["nonce_hex"], result["tag_hex"], result["salt_hex"]
         )
 
 
 def test_aes_gcm_rejects_non_hexadecimal_input():
     """Une entree malformee n'est pas un echec de dechiffrement : c'est autre chose."""
     with pytest.raises(InvalidInput):
-        aes_tool.decrypt_aes_gcm("pas-du-hex", "cle", "00" * 16, "00" * 16)
+        aes_tool.decrypt_aes_gcm("pas-du-hex", "cle", "00" * 16, "00" * 16, "00" * 16)
 
 
 def test_aes_key_derivation_is_32_bytes():
-    assert len(aes_tool.get_aes_key("n'importe quelle phrase")) == 32
+    key_bytes, salt = aes_tool.get_aes_key("n'importe quelle phrase")
+    assert len(key_bytes) == 32
+    assert len(salt) == 16
+
+
+def test_aes_key_derivation_is_salted():
+    """Meme phrase secrete, sels differents (aleatoires) -> cles differentes."""
+    first, _ = aes_tool.get_aes_key("identique")
+    second, _ = aes_tool.get_aes_key("identique")
+    assert first != second
+
+
+def test_aes_key_derivation_is_deterministic_given_a_salt():
+    """Le meme sel doit toujours reproduire la meme cle (c'est ce que permet le dechiffrement)."""
+    salt = bytes.fromhex("00" * 16)
+    first, _ = aes_tool.get_aes_key("identique", salt=salt)
+    second, _ = aes_tool.get_aes_key("identique", salt=salt)
+    assert first == second
 
 
 # --- DES-CBC -----------------------------------------------------------------
 
 def test_des_cbc_round_trip():
     result = des_tool.encrypt_des_cbc("Message secret", "ma-cle")
-    plain = des_tool.decrypt_des_cbc(result["cipher_hex"], "ma-cle", result["iv_hex"])
+    plain = des_tool.decrypt_des_cbc(
+        result["cipher_hex"], "ma-cle", result["iv_hex"], result["salt_hex"]
+    )
     assert plain == "Message secret"
 
 
@@ -122,11 +161,15 @@ def test_des_cbc_uses_a_fresh_iv_each_time():
 def test_des_cbc_rejects_wrong_key():
     result = des_tool.encrypt_des_cbc("Message secret", "bonne-cle")
     with pytest.raises(DecryptionFailed):
-        des_tool.decrypt_des_cbc(result["cipher_hex"], "mauvaise-cle", result["iv_hex"])
+        des_tool.decrypt_des_cbc(
+            result["cipher_hex"], "mauvaise-cle", result["iv_hex"], result["salt_hex"]
+        )
 
 
 def test_des_key_derivation_is_8_bytes():
-    assert len(des_tool.get_des_key("n'importe quelle phrase")) == 8
+    key_bytes, salt = des_tool.get_des_key("n'importe quelle phrase")
+    assert len(key_bytes) == 8
+    assert len(salt) == 16
 
 
 # --- RSA-OAEP ----------------------------------------------------------------

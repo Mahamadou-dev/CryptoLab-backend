@@ -93,12 +93,12 @@ def test_every_deterministic_algorithm_has_a_vector():
 # --- Structure du registre ---------------------------------------------------
 
 def test_registry_holds_every_algorithm():
-    # 10, et non 11 : la documentation comptait Rail Fence deux fois depuis que
-    # la transposition par colonnes a ete separee en phase 1.
-    assert len(registry) == 10
+    # Sprint 4 : +7 (MD5, SHA-1, SHA-3-256, BLAKE2b, HMAC-SHA256, PBKDF2, scrypt).
+    assert len(registry) == 17
     assert {a.slug for a in registry.all()} == {
         "caesar", "vigenere", "playfair", "railfence", "columnar",
         "aes", "des", "rsa", "sha256", "bcrypt",
+        "md5", "sha1", "sha3256", "blake2b", "hmacsha256", "pbkdf2", "scrypt",
     }
 
 
@@ -264,6 +264,7 @@ def test_decryption_failure_is_400_not_200():
             "key": "mauvaise-cle",
             "nonce_hex": encrypted["nonce_hex"],
             "tag_hex": encrypted["tag_hex"],
+            "salt_hex": encrypted["salt_hex"],
         },
     )
 
@@ -285,6 +286,7 @@ def test_aes_round_trip_through_the_envelope():
                 "key": "cle",
                 "nonce_hex": encrypted["nonce_hex"],
                 "tag_hex": encrypted["tag_hex"],
+                "salt_hex": encrypted["salt_hex"],
             },
         )
     )
@@ -303,6 +305,7 @@ def test_des_round_trip_through_the_envelope():
                 "cipher_hex": encrypted["cipher_hex"],
                 "key": "cle",
                 "iv_hex": encrypted["iv_hex"],
+                "salt_hex": encrypted["salt_hex"],
             },
         )
     )
@@ -313,7 +316,9 @@ def test_des_round_trip_through_the_envelope():
 def test_bad_hex_is_reported_as_invalid_input():
     response = client.post(
         "/api/modern/des/decrypt",
-        json={"cipher_hex": "pas-du-hex", "key": "cle", "iv_hex": "00" * 8},
+        json={
+            "cipher_hex": "pas-du-hex", "key": "cle", "iv_hex": "00" * 8, "salt_hex": "00" * 16,
+        },
     )
 
     assert response.status_code == 400

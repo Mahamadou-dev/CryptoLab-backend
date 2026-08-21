@@ -35,7 +35,9 @@ AES = Algorithm(
             name="decrypt",
             input_model=AesDecryptInput,
             handler=lambda d: {
-                "plain": aes_tool.decrypt_aes_gcm(d.cipher_hex, d.key, d.nonce_hex, d.tag_hex)
+                "plain": aes_tool.decrypt_aes_gcm(
+                    d.cipher_hex, d.key, d.nonce_hex, d.tag_hex, d.salt_hex
+                )
             },
             summary="Dechiffrer et verifier le tag",
             length_field="cipher_hex",
@@ -69,7 +71,9 @@ DES = Algorithm(
         Operation(
             name="decrypt",
             input_model=DesDecryptInput,
-            handler=lambda d: {"plain": des_tool.decrypt_des_cbc(d.cipher_hex, d.key, d.iv_hex)},
+            handler=lambda d: {
+                "plain": des_tool.decrypt_des_cbc(d.cipher_hex, d.key, d.iv_hex, d.salt_hex)
+            },
             summary="Dechiffrer un DES-CBC",
             length_field="cipher_hex",
         ),

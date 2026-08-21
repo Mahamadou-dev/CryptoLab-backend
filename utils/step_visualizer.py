@@ -1,6 +1,6 @@
 # Fichier: utils/step_visualizer.py
 # Assurez-vous que tous les imports sont présents
-from . import columnar, playfair, rail_fence, sha256_tool
+from . import columnar, playfair, rail_fence, sha1_tool, sha256_tool
 
 
 # --- SIMULATE CAESAR (INCHANGÉ) ---
@@ -487,6 +487,117 @@ def simulate_sha256(text: str) -> dict:
         step_counter += 1
 
     result = sha256_tool.digest_hex(h)
+    steps.append({
+        "step": step_counter,
+        "phase": "Final",
+        "description": f"Fin du processus. Empreinte : '{result}'.",
+        "final_result": result,
+    })
+
+    return {"final_result": result, "steps": steps, "block_count": len(blocks)}
+
+
+# --- SIMULATE SHA-1 ---
+def simulate_sha1(text: str) -> dict:
+    """
+    Trace étape par étape de SHA-1 (FIPS 180-1 / RFC 3174) : même structure que
+    `simulate_sha256`, avec 80 tours par bloc au lieu de 64 et un état sur cinq
+    mots (a..e) au lieu de huit.
+
+    SHA-1 est CASSÉ (attaque SHAttered, 2017) : cette trace sert à comprendre
+    la construction Merkle-Damgård qu'il partage avec SHA-256, jamais à
+    justifier son usage en production.
+    """
+    steps = []
+    step_counter = 0
+
+    data = text.encode("utf-8")
+    padded = sha1_tool.pad_message(data)
+    blocks = [padded[i:i + 64] for i in range(0, len(padded), 64)]
+
+    steps.append({
+        "step": step_counter,
+        "phase": "Bourrage",
+        "description": (
+            f"Texte : '{text}' ({len(data)} octets, {len(data) * 8} bits). "
+            f"SHA-1 est CASSÉ depuis 2017 (attaque SHAttered) : cette trace "
+            f"est pédagogique, pas une recommandation d'usage.\n"
+            f"Bourrage identique dans sa forme à SHA-256 : un bit '1', des "
+            f"zéros, puis la longueur d'origine sur 64 bits.\n"
+            f"Message bourré : {len(padded) * 8} bits, soit {len(blocks)} "
+            f"bloc(s) de 512 bits."
+        ),
+        "input_text": text,
+        "block_count": len(blocks),
+    })
+    step_counter += 1
+
+    h = sha1_tool.H0
+    for block_index, block in enumerate(blocks):
+        w = sha1_tool.message_schedule(block)
+        steps.append({
+            "step": step_counter,
+            "phase": "Planning des messages",
+            "description": (
+                f"Bloc {block_index} : les 16 premiers mots W[0..15] viennent "
+                f"du bloc. W[16..79] sont dérivés par XOR et rotation gauche "
+                f"de 1 bit des mots précédents (RFC 3174 §6.1)."
+            ),
+            "block": block_index,
+            "schedule": [f"{word:08x}" for word in w],
+        })
+        step_counter += 1
+
+        h_before = h
+        new_h, rounds = sha1_tool.compress(h, w)
+
+        steps.append({
+            "step": step_counter,
+            "phase": "État initial",
+            "description": (
+                f"Bloc {block_index} : variables de travail a..e initialisées "
+                f"à l'état courant du condensé."
+            ),
+            "block": block_index,
+            "state": {
+                name: f"{value:08x}"
+                for name, value in zip("abcde", h_before, strict=True)
+            },
+        })
+        step_counter += 1
+
+        for round_info in rounds:
+            state_hex = {k: f"{v:08x}" for k, v in round_info["state"].items()}
+            steps.append({
+                "step": step_counter,
+                "phase": "Compression",
+                "description": (
+                    f"Bloc {block_index}, tour {round_info['round']} : la "
+                    f"fonction f (Ch, Parity ou Maj selon la plage du tour) "
+                    f"combine W[{round_info['round']}] "
+                    f"({round_info['w']:08x}) et la constante K "
+                    f"({round_info['k']:08x})."
+                ),
+                "block": block_index,
+                "round": round_info["round"],
+                "state": state_hex,
+            })
+            step_counter += 1
+
+        h = new_h
+        steps.append({
+            "step": step_counter,
+            "phase": "Mise à jour du condensé",
+            "description": (
+                f"Bloc {block_index} terminé : chaque variable de travail "
+                f"est additionnée (mod 2^32) à l'état précédent du condensé."
+            ),
+            "block": block_index,
+            "digest_state": [f"{word:08x}" for word in h],
+        })
+        step_counter += 1
+
+    result = sha1_tool.digest_hex(h)
     steps.append({
         "step": step_counter,
         "phase": "Final",

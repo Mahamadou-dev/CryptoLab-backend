@@ -64,6 +64,46 @@ class BcryptVerifyInput(BaseModel):
     hashed_text: str = Field(..., max_length=256)
 
 
+class BcryptHashInput(BaseModel):
+    """
+    Hachage bcrypt avec facteur de cout reglable.
+
+    `cost` est le logarithme du nombre de tours (2**cost) : chaque unite
+    double le temps de calcul. Borne a 16 (~quelques secondes) pour qu'une
+    requete ne monopolise pas le serveur.
+    """
+
+    text: str = Field(..., max_length=MAX_KEY)
+    cost: int = Field(default=12, ge=4, le=16)
+
+
+class HmacLengthExtensionInput(BaseModel):
+    """Demonstration pedagogique de l'attaque par extension de longueur."""
+
+    secret: str = Field(..., max_length=MAX_KEY)
+    message: str = Field(..., max_length=MAX_TEXT)
+
+
+class Pbkdf2Input(BaseModel):
+    """Derivation PBKDF2 (RFC 8018)."""
+
+    password: str = Field(..., max_length=MAX_KEY)
+    salt_hex: str = Field(..., max_length=128)
+    iterations: int = Field(default=200_000, ge=1, le=2_000_000)
+    dklen: int = Field(default=32, ge=1, le=128)
+
+
+class ScryptInput(BaseModel):
+    """Derivation scrypt (RFC 7914)."""
+
+    password: str = Field(..., max_length=MAX_KEY)
+    salt_hex: str = Field(..., max_length=128)
+    n: int = Field(default=16_384, ge=2, le=1_048_576)
+    r: int = Field(default=8, ge=1, le=32)
+    p: int = Field(default=1, ge=1, le=16)
+    dklen: int = Field(default=32, ge=1, le=128)
+
+
 class AesDecryptInput(BaseModel):
     """Dechiffrement AES-256-GCM."""
 
@@ -71,6 +111,7 @@ class AesDecryptInput(BaseModel):
     key: str = Field(..., min_length=1, max_length=MAX_KEY)
     nonce_hex: str = Field(..., max_length=64)
     tag_hex: str = Field(..., max_length=64)
+    salt_hex: str = Field(..., max_length=64)
 
 
 class DesDecryptInput(BaseModel):
@@ -79,6 +120,7 @@ class DesDecryptInput(BaseModel):
     cipher_hex: str = Field(..., max_length=MAX_HEX)
     key: str = Field(..., min_length=1, max_length=MAX_KEY)
     iv_hex: str = Field(..., max_length=32)
+    salt_hex: str = Field(..., max_length=64)
 
 
 class RsaEncryptInput(BaseModel):

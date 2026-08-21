@@ -174,6 +174,7 @@ def test_aes_endpoints_round_trip(client):
             "key": "ma-cle",
             "nonce_hex": encrypted["nonce_hex"],
             "tag_hex": encrypted["tag_hex"],
+            "salt_hex": encrypted["salt_hex"],
         },
     ))
     assert decrypted["plain"] == "Message secret"
@@ -189,6 +190,7 @@ def test_des_endpoints_round_trip(client):
             "cipher_hex": encrypted["cipher_hex"],
             "key": "ma-cle",
             "iv_hex": encrypted["iv_hex"],
+            "salt_hex": encrypted["salt_hex"],
         },
     ))
     assert decrypted["plain"] == "Message secret"
@@ -214,7 +216,8 @@ def test_rsa_endpoints_round_trip(client):
 def test_simulate_lists_available_algorithms(client):
     algorithms = unwrap(client.get("/api/simulate"))["algorithms"]
     assert algorithms == [
-        "aes", "caesar", "columnar", "des", "playfair", "railfence", "sha256", "vigenere",
+        "aes", "caesar", "columnar", "des", "playfair", "railfence",
+        "sha1", "sha256", "vigenere",
     ]
 
 
