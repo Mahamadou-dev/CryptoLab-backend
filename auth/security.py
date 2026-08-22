@@ -18,10 +18,11 @@ logger = logging.getLogger(__name__)
 
 ALGORITHM = "HS256"
 
-# Duree de vie du jeton. 7 jours : assez long pour ne pas deconnecter un
-# etudiant entre deux seances de TP, assez court pour limiter la fenetre de
-# compromission d'un jeton vole.
-TOKEN_TTL = timedelta(days=int(os.getenv("CRYPTOLAB_JWT_TTL_DAYS", "7")))
+# Duree de vie du jeton. 24h : assez long pour une seance de TP, assez court
+# pour limiter la fenetre de compromission d'un jeton vole. Le choix precedent
+# (7 jours) rendait la session quasi permanente du point de vue d'un
+# utilisateur qui revient chaque jour sans jamais voir d'expiration.
+TOKEN_TTL = timedelta(hours=int(os.getenv("CRYPTOLAB_JWT_TTL_HOURS", "24")))
 
 # bcrypt tronque silencieusement au-dela de 72 octets : on refuse plutot que de
 # laisser croire qu'un mot de passe de 200 caracteres est integralement pris en

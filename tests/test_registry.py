@@ -108,9 +108,13 @@ def test_registry_holds_every_algorithm():
     # Sprint 6 : +5 (RSA petits nombres, signature RSA, Diffie-Hellman, ECDH, ECC).
     # Sprint 6 (suite) : +2 (ECDSA/secp256k1, Ed25519).
     # Sprint 6 (fin) : +2 (DSA, ElGamal).
-    assert len(registry) == 36
+    # Sprint 7 : +3 (ROT13, Atbash, substitution simple).
+    # Sprint 7 (fin) : +5 (Affine, Hill, One-Time Pad, analyse de frequence, Enigma).
+    assert len(registry) == 44
     assert {a.slug for a in registry.all()} == {
         "caesar", "vigenere", "playfair", "railfence", "columnar",
+        "rot13", "atbash", "substitution",
+        "affine", "hill", "otp", "frequencyanalysis", "enigma",
         "aes", "aes128", "aes192", "des", "tripledes", "chacha20poly1305",
         "rc4", "aesmodes", "rsa", "sha256", "bcrypt",
         "md5", "sha1", "sha3256", "blake2b", "hmacsha256", "pbkdf2", "scrypt", "argon2id",
@@ -217,7 +221,7 @@ def test_catalog_lists_every_algorithm():
 def test_catalog_filters_by_family():
     data = unwrap(client.get("/api/algorithms", params={"family": "classical"}))
 
-    assert data["count"] == 5
+    assert data["count"] == 13
     assert {a["family"] for a in data["algorithms"]} == {"classical"}
 
 
@@ -238,7 +242,7 @@ def test_catalog_detail_exposes_the_vectors():
 
 
 def test_catalog_detail_rejects_an_unknown_slug():
-    response = client.get("/api/algorithms/enigma")
+    response = client.get("/api/algorithms/quantum-teleportation")
 
     assert response.status_code == 404
     error = error_of(response)

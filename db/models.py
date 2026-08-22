@@ -426,3 +426,56 @@ class ElGamalDecryptInput(BaseModel):
     x: int = Field(..., ge=1, le=MAX_SMALL_INT)
     c1: int = Field(..., ge=1, le=MAX_SMALL_INT)
     c2: int = Field(..., ge=0, le=MAX_SMALL_INT)
+
+
+# --- Sprint 7 : classiques additionnels ---------------------------------------
+
+class AffineInput(BaseModel):
+    """Chiffre affine : x -> a*x + b (mod 26). `a` doit etre premier avec 26."""
+
+    text: str = Field(..., max_length=MAX_TEXT)
+    a: int = Field(..., ge=1, le=25)
+    b: int = Field(..., ge=0, le=25)
+
+
+class HillInput(BaseModel):
+    """Chiffre de Hill 2x2 : la cle est une matrice [[a, b], [c, d]] mod 26."""
+
+    text: str = Field(..., max_length=MAX_TEXT)
+    a: int = Field(..., ge=0, le=25)
+    b: int = Field(..., ge=0, le=25)
+    c: int = Field(..., ge=0, le=25)
+    d: int = Field(..., ge=0, le=25)
+
+
+class OneTimePadInput(BaseModel):
+    """One-Time Pad sur l'alphabet latin : la cle doit couvrir chaque lettre du texte."""
+
+    text: str = Field(..., max_length=MAX_TEXT)
+    key: str = Field(..., min_length=1, max_length=MAX_TEXT)
+
+
+class FrequencyAnalysisInput(BaseModel):
+    """Analyse de frequence et indice de coincidence d'un texte (chiffre ou non)."""
+
+    text: str = Field(..., min_length=1, max_length=MAX_TEXT)
+
+
+class EnigmaInput(BaseModel):
+    """
+    Machine Enigma (modele I) : trois rotors distincts parmi I-V, positions et
+    reglages d'anneau de A a Z, reflecteur B, et un tableau de connexions
+    optionnel (paires de lettres echangees avant/apres les rotors).
+    """
+
+    text: str = Field(..., max_length=MAX_TEXT)
+    rotors: str = Field(
+        ..., min_length=5, max_length=20, description="Trois rotors separes par des espaces, ex. 'I II III'."
+    )
+    positions: str = Field(..., min_length=3, max_length=3)
+    ring_settings: str = Field(default="AAA", min_length=3, max_length=3)
+    plugboard: str = Field(
+        default="",
+        max_length=100,
+        description="Paires separees par des espaces, ex. 'AB CD EF'.",
+    )
